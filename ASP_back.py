@@ -146,7 +146,7 @@ class Simplex:
         # --- Compatibilitatea
         for row_idx, var_idx in enumerate(self.iBaza):
             if abs(self.coef[int(var_idx)]) == M and self.X_b[row_idx] > 1e-5:
-                print("Problema nu are solutie admisibila (sistem incompatibil).", end='\n')
+                return "Problema nu are solutie admisibila (sistem incompatibil)."
                 # Z-ul este irelevant aici, deci verificarea 2 va pica intentionat.
         # -------------------------------
 
