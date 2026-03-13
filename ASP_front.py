@@ -1,10 +1,47 @@
 import sys
 import numpy as np
 
+from ASP_back import Simplex
+from problems import mm, MM, eg
+
 from PySide6.QtWidgets import (
     QApplication, QWidget, QVBoxLayout, QHBoxLayout,
-    QLabel, QLineEdit, QPushButton, QComboBox
+    QLabel, QLineEdit, QPushButton, QComboBox, QDialog, QTextEdit
 )
+
+class OutputWindow(QDialog):
+
+    def __init__(self, solution, Z, verify_result, parent=None):
+        super().__init__(parent)
+
+        self.setWindowTitle("Rezultat Simplex")
+        self.resize(400, 300)
+
+        layout = QVBoxLayout()
+
+        text = QTextEdit()
+        text.setReadOnly(True)
+
+        result_text = "Solutia optima:\n\n"
+
+        for i, val in enumerate(solution):
+            result_text += f"x{i+1} = {val:.4f}\n"
+
+        result_text += f"\nZ = {Z:.4f}\n\n"
+        result_text += "Verificari:\n"
+
+        for i, v in enumerate(verify_result):
+            result_text += f"Test {i+1}: {'OK' if v else 'FAIL'}\n"
+
+        text.setText(result_text)
+
+        close_btn = QPushButton("Inchide")
+        close_btn.clicked.connect(self.close)
+
+        layout.addWidget(text)
+        layout.addWidget(close_btn)
+
+        self.setLayout(layout)
 
 
 class LinearUI(QWidget):
@@ -40,6 +77,8 @@ class LinearUI(QWidget):
         self.layout.addLayout(input_layout)
 
         self.setLayout(self.layout)
+
+        self.solver = Simplex()
 
     def genereaza(self):
 
@@ -118,10 +157,10 @@ class LinearUI(QWidget):
         s = []
 
         sign_map = {
-            "<=": 1,
-            "=": 2,
-            ">=": 0
-        }
+            "<=": mm,
+            "=": eg,
+            ">=": MM
+}
 
         for row, combo, rhs in self.constraints:
 
@@ -139,19 +178,27 @@ class LinearUI(QWidget):
 
     def rezolva(self):
 
+        from ASP_back import Simplex
+
+        solver = Simplex()
+
         c, A, s, b = self.get_numpy_data()
 
-        print("\nVector functie obiectiv c:")
-        print(c)
+        prob = {
+            "coef": c,
+            "MatriceA": A,
+            "b": b,
+            "inegalitate": s,
+            "OPT": -1
+        }
 
-        print("\nMatrice restrictii A:")
-        print(A)
+        sol = solver.solve(np.float64, **prob)
+        verify = solver.verify()
 
-        print("\nVector semne s:")
-        print(s)
+        Z = solver.Z
 
-        print("\nVector termeni liberi b:")
-        print(b)
+        self.output_window = OutputWindow(sol, Z, verify)
+        self.output_window.show()
 
 
 app = QApplication(sys.argv)

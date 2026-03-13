@@ -41,7 +41,7 @@ class Simplex:
                 if self.inegalitate[i] in (MM, mm):
                     self.inegalitate[i] = mm if self.inegalitate[i] == MM else MM
 
-        # Regula 1: skip deoarece se considera implicit x >= 0
+        # Regulla 1: skip deoarece se considera implicit x >= 0
         # Regula 2
 
         for i, semn in enumerate(self.inegalitate):
