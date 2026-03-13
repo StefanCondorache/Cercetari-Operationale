@@ -1,13 +1,5 @@
 import numpy as np
-
-MIN = 1
-MAX = -1
-
-MM = 0 # exp >= b
-mm = 1 # exp <= b
-eg = 2 # exp = b
-
-M = np.float64(10**6)
+from problems import *
 
 class Simplex:
 
@@ -27,6 +19,7 @@ class Simplex:
         self.b              = prob["b"].astype(data_type)
         self.inegalitate    = prob["inegalitate"]
         self.OPT            = prob["OPT"]
+        self.nr_variabile   = prob["coef"].shape[0]
 
         self.Baza_I0        = np.array([])
         self.S_I_stop       = np.array([])
@@ -142,8 +135,6 @@ class Simplex:
                     factor = self.MatriceA[i, intra_in_baza]
                     self.MatriceA[i] -= factor * self.MatriceA[iese_din_baza]
                     self.X_b[i] -= factor * self.X_b[iese_din_baza]
-
-            self.afisare()
         
         self.Baza_I_stop    = np.copy(self.X_b)
         self.S_I_stop       = np.copy(self.iBaza)
@@ -151,6 +142,13 @@ class Simplex:
 
         for row_idx, var_idx in enumerate(self.iBaza):
             self.solutie[int(var_idx)] = self.X_b[row_idx]
+
+        # --- Compatibilitatea
+        for row_idx, var_idx in enumerate(self.iBaza):
+            if abs(self.coef[int(var_idx)]) == M and self.X_b[row_idx] > 1e-5:
+                print("Problema nu are solutie admisibila (sistem incompatibil).", end='\n')
+                # Z-ul este irelevant aici, deci verificarea 2 va pica intentionat.
+        # -------------------------------
 
         return self.solutie
     
@@ -167,19 +165,19 @@ class Simplex:
                 result[0] = True
 
         # Verificarea 2
-        if np.dot(self.solutie[:3], self.coef[:3].T) == self.Z:
+        valori      = self.solutie[:self.nr_variabile]
+        coeficienti = self.coef[:self.nr_variabile]
+        Z_calculat  = np.float64(np.dot(valori, coeficienti.T))
+
+        if abs(Z_calculat - np.float64(self.Z)) <= 1e-3:
             result[1] = True
         else:
             result[1] = False
 
         # Verificarea 3
-        S = np.column_stack([
-            self.Matrix_initial[:, int(self.iBaza[0])],
-            self.Matrix_initial[:, int(self.iBaza[1])],
-            self.Matrix_initial[:, int(self.iBaza[2])]
-        ])
+        S = self.Matrix_initial[:, self.iBaza.astype(int)]
 
-        if np.all(self.Baza_I0 == np.dot(S, self.Baza_I_stop)):
+        if np.allclose(self.Baza_I0, np.dot(S, self.Baza_I_stop), atol=1e-3):
             result[2] = True
         else:
             result[2] = False
@@ -189,51 +187,10 @@ class Simplex:
 if __name__ == '__main__':
     
     solver = Simplex()
-    data_type = np.float64
     
-    problema1 = {
-        "OPT":          MAX,                                            
-        "coef":         np.array([4, 3, 5], dtype=data_type),
-        "MatriceA":     np.array([[1, 3, 2], [4, 2, 2], [1, 1, 3]], dtype=data_type), 
-        "inegalitate":  np.array([mm, mm, mm], dtype=int),     
-        "b":            np.array([12, 15, 12], dtype=data_type)
-    }
-    
-    problema2 = {
-        "OPT":          MAX,                                            
-        "coef":         np.array([4, 1, 2], dtype=data_type),
-        "MatriceA":     np.array([[1, 2, 3], [1, 1, 1], [2, 1, 2]], dtype=data_type), 
-        "inegalitate":  np.array([mm, mm, mm], dtype=int),     
-        "b":            np.array([12, 10, 8], dtype=data_type)
-    }
-
-    problema3 = {
-        "OPT":          MAX,                                            
-        "coef":         np.array([1, -3], dtype=data_type),
-        "MatriceA":     np.array([[1, 1], [2, -1]], dtype=data_type), 
-        "inegalitate":  np.array([MM, mm], dtype=int),     
-        "b":            np.array([-1, 2], dtype=data_type)
-    }
-
-    problema4 = {
-        "OPT":          MIN,                                            
-        "coef":         np.array([1, 1, -1], dtype=data_type),
-        "MatriceA":     np.array([[1, 2, 1], [-2, 0, 3], [0, 1, -3]], dtype=data_type), 
-        "inegalitate":  np.array([mm, mm, eg], dtype=int),     
-        "b":            np.array([1, -2, 5], dtype=data_type)
-    }
-
-    problema5 = {
-        "OPT":          MAX,                                            
-        "coef":         np.array([3, 2, 3], dtype=data_type),
-        "MatriceA":     np.array([[2, 3, 2], [3, 2, 1], [2, 1, 2]], dtype=data_type), 
-        "inegalitate":  np.array([mm, mm, mm], dtype=int),     
-        "b":            np.array([15, 15, 15], dtype=data_type)
-    }
-
-
-    sol = solver.solve(data_type, **problema5)
-    result = solver.verify()
-    print("Solutia: ", sol)
-    print("Verificarea: ", result)
-    #solver.afisare()
+    for problem in problems.keys():
+        print(problem, end='\n')
+        sol = solver.solve(data_type, **problems[problem])
+        result = solver.verify()
+        print("Solutia: ", sol)
+        print("Verificarea: ", result, end='\n\n')
