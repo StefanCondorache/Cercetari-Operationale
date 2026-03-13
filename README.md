@@ -28,6 +28,26 @@ The Simplex algorithm is a fundamental method in operations research for solving
 6. Perform pivot operation using Gauss-Jordan elimination
 7. Repeat until optimality is reached or unbounded solution is detected
 
+### Method Outputs
+
+#### `solve(data_type, **prob)`
+Executes the Primal Simplex Algorithm and returns the result of the optimization. 
+* **Optimal Solution:** If a finite optimal solution is found, it returns a 1D `numpy.ndarray` containing the final values of the decision variables.
+
+* **Unbounded Solution:** If the feasible region is open and the objective function can grow infinitely, it returns the string message: 
+                                                                              `"Problema are solutie nemarginita (Z tinde la infinit)."`.
+
+* **Incompatible System:** If the problem has no feasible region (artificial variables remain in the basis with a non-zero value), it returns the string message:   
+                                                                                                  `"Problema nu are solutie admisibila (sistem incompatibil)."`.
+
+#### `verify()`
+Performs three independent mathematical checks to validate the integrity of the computed solution. It returns a `list` of three booleans (`[bool, bool, bool]`).
+* **Check 1 (Index 0 - Non-negativity):** `True` if all variables in the final solution satisfy the non-negativity constraint ($x_i \ge 0$).
+
+* **Check 2 (Index 1 - Objective Match):** `True` if the dot product of the original objective coefficients and the computed decision variables matches the algorithm's final $Z$ value (within a `1e-3` tolerance).
+
+* **Check 3 (Index 2 - Matrix Consistency):** `True` if multiplying the initial basis by the final state accurately reconstructs the initial constants, proving the Gauss-Jordan eliminations were applied correctly.
+
 ## How to Use the Simplex Class
 
 ### Basic Usage

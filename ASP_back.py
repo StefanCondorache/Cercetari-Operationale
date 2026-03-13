@@ -89,8 +89,8 @@ class Simplex:
                 if self.OPT == MAX and self.Z >= temp: print("z descreste - corect")
                 elif self.OPT == MIN and self.Z <= temp: print("z creste - corect")
                 else: 
-                    print("z nu evolueaza corect")
-                    return -1
+                    return "z nu evolueaza corect"
+
 
             produs      = np.dot(self.C_b, self.MatriceA)
             self.Delta  = self.coef - produs
@@ -119,8 +119,7 @@ class Simplex:
             list1                           = [ (self.X_b[i] / pivot_col[i]) if pivot_col[i] > 0 else np.inf for i in range(self.X_b.shape[0]) ]
 
             if all(ratio == np.inf for ratio in list1):
-                print("Problema are solutie nemarginita (Z tinde la infinit).")
-                break
+                return "Problema are solutie nemarginita (Z tinde la infinit)."
 
             Min                             = min(list1)
             iese_din_baza                   = list1.index(Min)
