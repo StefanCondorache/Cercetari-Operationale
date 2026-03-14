@@ -74,16 +74,16 @@ class Simplex:
         self.Baza_I0        = np.copy(self.X_b)
         self.Matrix_initial = np.copy(self.MatriceA)
 
+        for j, victor in enumerate(self.MatriceA.T):
+            if np.all(np.sort(victor) == victor_unique):
+                filtru              = np.all(Identitate == victor, axis=1)
+                index               = np.where(filtru)[0]
+                self.iBaza[index]   = j
+                self.C_b[index]     = self.coef[j]
+
         while not optim:
-            for j, victor in enumerate(self.MatriceA.T):
-                if np.all(np.sort(victor) == victor_unique):
-                    filtru              = np.all(Identitate == victor, axis=1)
-                    index               = np.where(filtru)[0]
-                    self.iBaza[index]   = j
-                    self.C_b[index]     = self.coef[j]
-            
-            temp                        = self.Z
-            self.Z                      = np.dot(self.C_b, self.X_b.T)
+            temp                    = self.Z
+            self.Z                  = np.dot(self.C_b, self.X_b.T)
             
             if temp is not None:
                 if self.OPT == MAX and self.Z >= temp: print("z descreste - corect")
@@ -134,6 +134,9 @@ class Simplex:
                     factor = self.MatriceA[i, intra_in_baza]
                     self.MatriceA[i] -= factor * self.MatriceA[iese_din_baza]
                     self.X_b[i] -= factor * self.X_b[iese_din_baza]
+
+            self.iBaza[iese_din_baza] = intra_in_baza
+            self.C_b[iese_din_baza]   = self.coef[intra_in_baza]
         
         self.Baza_I_stop    = np.copy(self.X_b)
         self.S_I_stop       = np.copy(self.iBaza)
@@ -154,6 +157,9 @@ class Simplex:
     def verify(self) -> list[bool]:
         
         result = [False, False, False]
+
+        if self.Baza_I_stop.size == 0:
+            return result
 
         # Verificarea 1
         for x in self.solutie:
@@ -186,7 +192,7 @@ class Simplex:
 if __name__ == '__main__':
     
     solver = Simplex()
-    
+
     for problem in problems.keys():
         print(problem, end='\n')
         sol = solver.solve(data_type, **problems[problem])
