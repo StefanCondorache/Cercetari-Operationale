@@ -78,3 +78,15 @@ verification_results = solver.verify()
 print("Solution:", solution)
 print("Objective Value (Z):", solver.Z)
 print("Verification Results:", verification_results)
+```
+
+### It handles:
+✅ Minimization & Maximization
+✅ All constraint types ($\le, \ge, =$)
+✅ Big-M penalties
+✅ Identical coefficients (degeneracy)
+✅ Equal Delta ties (Bland's Rule)
+✅ Incompatible systems (no feasible region)
+✅ Unbounded problems
+✅ Redundant constraints
+✅ Floating-point noise filtering
