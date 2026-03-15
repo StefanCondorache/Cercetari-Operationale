@@ -25,6 +25,14 @@ class Simplex:
         self.S_I_stop       = np.array([])
         self.Baza_I_stop    = np.array([])
 
+        self.istoric_variabile = []
+        for i in range(self.nr_variabile):
+            self.istoric_variabile.append({
+                "nume": f"x{i+1}", 
+                "tip": "decizie", 
+                "coeficient": self.coef[i]
+            })
+
         assert self.MatriceA.shape[0] == self.b.shape[0],             'numarul de ecuatii trebuie sa coincida cu numarul de elemnte din b'
         assert self.MatriceA.shape[1] == self.coef.shape[0],          'dimensiunea lui x trebuie sa fie egala cu dimensiunea lui c'
         assert self.MatriceA.shape[0] == self.inegalitate.shape[0],   'trebuie sa fiu acelasi numar de inegalitati ca si numarul de ecuatii '
@@ -49,16 +57,20 @@ class Simplex:
                 self.coef = np.append(self.coef, 0)
                 col = np.zeros((len(self.inegalitate)), dtype=data_type);  col[i] = 1
                 self.MatriceA = np.column_stack([self.MatriceA, col])
+                self.istoric_variabile.append({"nume": f"y{i+1}", "tip": "compensare (<=)", "coeficient": 0})
             elif semn == MM:
                 self.coef = np.append(self.coef, np.array([0, self.OPT*M], dtype=data_type))
                 col1 = np.zeros((len(self.inegalitate),), dtype=data_type); col1[i] = -1
                 col2 = np.zeros((len(self.inegalitate),), dtype=data_type); col2[i] = 1
                 self.MatriceA = np.column_stack([self.MatriceA, col1])
                 self.MatriceA = np.column_stack([self.MatriceA, col2])
+                self.istoric_variabile.append({"nume": f"y{i+1}", "tip": "surplus (>=)", "coeficient": 0})
+                self.istoric_variabile.append({"nume": f"z{i+1}", "tip": "artificial", "coeficient": self.OPT*M})
             else: 
                 self.coef = np.append(self.coef, self.OPT*M)
                 col = np.zeros((len(self.inegalitate),), dtype=data_type); col[i] = 1
                 self.MatriceA = np.column_stack([self.MatriceA, col])
+                self.istoric_variabile.append({"nume": f"z{i+1}", "tip": "artificial", "coeficient": self.OPT*M})
 
         self.C_b             = np.zeros(self.MatriceA.shape[0])
         self.X_b             = np.copy(self.b)
@@ -145,14 +157,19 @@ class Simplex:
         for row_idx, var_idx in enumerate(self.iBaza):
             self.solutie[int(var_idx)] = self.X_b[row_idx]
 
-        # --- Compatibilitatea
         for row_idx, var_idx in enumerate(self.iBaza):
-            if abs(self.coef[int(var_idx)]) == M and self.X_b[row_idx] > 1e-5:
+            if abs(self.coef[int(var_idx)]) == M and self.X_b[row_idx] > 1e-6:
                 return "Problema nu are solutie admisibila (sistem incompatibil)."
-                # Z-ul este irelevant aici, deci verificarea 2 va pica intentionat.
-        # -------------------------------
 
-        return self.solutie
+        self.solutie_detaliata = {}
+        for j, info in enumerate(self.istoric_variabile):
+            self.solutie_detaliata[info["nume"]] = {
+                "valoare": round(float(self.solutie[j]), 4),
+                "tip": info["tip"],
+                "coef_obiectiv": info["coeficient"]
+            }
+
+        return self.solutie_detaliata
     
     def verify(self) -> list[bool]:
         

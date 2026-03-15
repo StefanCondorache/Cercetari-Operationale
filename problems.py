@@ -399,6 +399,50 @@ problems = {
                                   [3, -2]], dtype=data_type), 
         "inegalitate":  np.array([mm, mm, mm], dtype=int),     
         "b":            np.array([4, 12, 0], dtype=data_type)
+    },
+
+    "problema_fabrica_de_lana" : {
+        "OPT":          MAX,                                            
+        "coef":         np.array([15, 20, 18], dtype=data_type),
+        "MatriceA":     np.array([[2, 3, 2], 
+                                  [1, 1, 1.5], 
+                                  [0, 1, 0],
+                                  [1, 0, 1]], dtype=data_type), 
+        "inegalitate":  np.array([mm, mm, MM, eg], dtype=int),     
+        "b":            np.array([120, 80, 10, 30], dtype=data_type)
+    },
+
+    "problema_fabrica_lana_complexa" : {
+        "OPT":          MAX,                                            
+        "coef":         np.array([30, 45, 15, 25], dtype=data_type),
+        "MatriceA":     np.array([[10, 20, 5, 12], 
+                                  [3,  3,  1,  1], 
+                                  [0,  2,  0,  1],
+                                  [1,  1,  0,  0],
+                                  [0,  1,  0, -1],
+                                  [1,  1,  0,  0]], dtype=data_type), 
+        "inegalitate":  np.array([mm, mm, mm, MM, eg, mm], dtype=int),     
+        "b":            np.array([2000, 400, 100, 30, 0, 100], dtype=data_type)
+    },
+
+    "problema_corporatia_globaltex_10x10" : {
+        "OPT":          MAX,                                            
+        "coef":         np.array([20, 35, 50, 80, 100, 250, 70, 90, 120, 200], dtype=data_type),
+        "MatriceA":     np.array([
+            # x1   x2   x3   x4   x5   x6   x7   x8   x9  x10
+            [0.5, 0.8, 1.0, 1.5, 1.2, 2.0, 1.5, 2.0, 2.5, 4.0],  # 1. Croitorie
+            [1.0, 1.5, 2.0, 2.5, 2.0, 3.0, 2.5, 3.5, 4.0, 6.0],  # 2. Cusut
+            [0.2, 0.5, 0.5, 1.0, 0.8, 1.5, 1.0, 1.5, 1.5, 2.5],  # 3. Control Calitate
+            [1.5, 2.0, 2.5, 0.0, 0.0, 0.0, 3.0, 0.0, 1.0, 2.0],  # 4. Bumbac
+            [0.0, 0.0, 0.0, 2.5, 2.0, 3.0, 0.0, 2.5, 0.0, 1.0],  # 5. Materiale Premium
+            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 3.0, 4.0],  # 6. Sintetic/Fâș
+            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0],  # 7. Export Geci Iarnă (>=)
+            [0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 1.0,-2.0, 0.0, 0.0],  # 8. Colecție Blugi=Stofă (=)
+            [1.0, 1.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0],  # 9. Campanie Tricouri (>=)
+            [0.0, 0.0, 0.0, 1.0, 0.0, 1.0, 0.0, 0.0, 0.0, 0.0]   # 10. Logistică VIP (<=)
+        ], dtype=data_type), 
+        "inegalitate":  np.array([mm, mm, mm, mm, mm, mm, MM, eg, MM, mm], dtype=int),     
+        "b":            np.array([5000, 8000, 3000, 10000, 2000, 4000, 200, 0, 1000, 500], dtype=data_type)
     }
 }
 
