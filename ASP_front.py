@@ -102,7 +102,7 @@ class LinearUI(QWidget):
 
         # Functia obiectiv
         obj_layout = QHBoxLayout()
-        obj_layout.addWidget(QLabel("Z ="))
+        obj_layout.addWidget(QLabel("OPT f(x) ="))
 
         for i in range(n):
             entry = QLineEdit()

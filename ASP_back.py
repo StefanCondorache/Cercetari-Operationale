@@ -1,5 +1,6 @@
 import numpy as np
 from problems import *
+from math import comb
 
 class Simplex:
 
@@ -17,6 +18,9 @@ class Simplex:
         self.coef           = prob["coef"].astype(data_type)
         self.MatriceA       = prob["MatriceA"].astype(data_type)
         self.b              = prob["b"].astype(data_type)
+        self.M = max(np.max(np.abs(self.coef)), 
+                     np.max(np.abs(self.MatriceA)),
+                     np.max(np.abs(self.b))) * 10**6
         self.inegalitate    = prob["inegalitate"]
         self.OPT            = prob["OPT"]
         self.nr_variabile   = prob["coef"].shape[0]
@@ -36,7 +40,7 @@ class Simplex:
         assert self.MatriceA.shape[0] == self.b.shape[0],             'numarul de ecuatii trebuie sa coincida cu numarul de elemnte din b'
         assert self.MatriceA.shape[1] == self.coef.shape[0],          'dimensiunea lui x trebuie sa fie egala cu dimensiunea lui c'
         assert self.MatriceA.shape[0] == self.inegalitate.shape[0],   'trebuie sa fiu acelasi numar de inegalitati ca si numarul de ecuatii '
-        assert self.OPT in (-1, 1),                              'Optimul poate fi doar 1 (MIN) sau -1 (MAX)'
+        assert self.OPT in (-1, 1),                                   'Optimul poate fi doar 1 (MIN) sau -1 (MAX)'
 
         print("Algoritmul Simplex Primal presupune ca in conditia-3: x >= 0; (default)", end='\n')
 
@@ -59,18 +63,18 @@ class Simplex:
                 self.MatriceA = np.column_stack([self.MatriceA, col])
                 self.istoric_variabile.append({"nume": f"y{i+1}", "tip": "compensare (<=)", "coeficient": 0})
             elif semn == MM:
-                self.coef = np.append(self.coef, np.array([0, self.OPT*M], dtype=data_type))
+                self.coef = np.append(self.coef, np.array([0, self.OPT*self.M], dtype=data_type))
                 col1 = np.zeros((len(self.inegalitate),), dtype=data_type); col1[i] = -1
                 col2 = np.zeros((len(self.inegalitate),), dtype=data_type); col2[i] = 1
                 self.MatriceA = np.column_stack([self.MatriceA, col1])
                 self.MatriceA = np.column_stack([self.MatriceA, col2])
                 self.istoric_variabile.append({"nume": f"y{i+1}", "tip": "surplus (>=)", "coeficient": 0})
-                self.istoric_variabile.append({"nume": f"z{i+1}", "tip": "artificial", "coeficient": self.OPT*M})
+                self.istoric_variabile.append({"nume": f"z{i+1}", "tip": "artificial", "coeficient": self.OPT*self.M})
             else: 
-                self.coef = np.append(self.coef, self.OPT*M)
+                self.coef = np.append(self.coef, self.OPT*self.M)
                 col = np.zeros((len(self.inegalitate),), dtype=data_type); col[i] = 1
                 self.MatriceA = np.column_stack([self.MatriceA, col])
-                self.istoric_variabile.append({"nume": f"z{i+1}", "tip": "artificial", "coeficient": self.OPT*M})
+                self.istoric_variabile.append({"nume": f"z{i+1}", "tip": "artificial", "coeficient": self.OPT*self.M})
 
         self.C_b             = np.zeros(self.MatriceA.shape[0])
         self.X_b             = np.copy(self.b)
@@ -93,13 +97,23 @@ class Simplex:
                 self.iBaza[index]   = j
                 self.C_b[index]     = self.coef[j]
 
+        n_var = self.coef.shape[0]
+        n_con = self.MatriceA.shape[0]
+        max_iteratii = comb(n_var, n_con)
+        iteratie_curenta = 0
+
         while not optim:
+
+            iteratie_curenta += 1
+            if iteratie_curenta > max_iteratii:
+                return f"Ciclare detectata: algoritmul nu converge in {max_iteratii} iteratii."
+            
             temp                    = self.Z
             self.Z                  = np.dot(self.C_b, self.X_b.T)
             
             if temp is not None:
-                if self.OPT == MAX and self.Z >= temp: print("z descreste - corect")
-                elif self.OPT == MIN and self.Z <= temp: print("z creste - corect")
+                if self.OPT == MAX and self.Z >= temp: print("z creste - corect")
+                elif self.OPT == MIN and self.Z <= temp: print("z descreste - corect")
                 else: 
                     return "z nu evolueaza corect"
 
@@ -107,18 +121,11 @@ class Simplex:
             produs      = np.dot(self.C_b, self.MatriceA)
             self.Delta  = self.coef - produs
 
-            for j in range(self.coef.shape[0]):
-                if self.OPT == MAX:
-                    if self.Delta[j] > 0:
-                        optim = False
-                        break
-                    optim = True
-                elif self.OPT == MIN:
-                    if self.Delta[j] < 0:
-                        optim = False
-                        break
-                    optim = True
-
+            if self.OPT == MAX:
+                optim = all(d <= 0 for d in self.Delta)
+            elif self.OPT == MIN:
+                optim = all(d >= 0 for d in self.Delta)
+            
             #self.afisare()
             if optim : break
 
@@ -158,7 +165,7 @@ class Simplex:
             self.solutie[int(var_idx)] = self.X_b[row_idx]
 
         for row_idx, var_idx in enumerate(self.iBaza):
-            if abs(self.coef[int(var_idx)]) == M and self.X_b[row_idx] > 1e-6:
+            if abs(self.coef[int(var_idx)]) == self.M and self.X_b[row_idx] > 1e-6:
                 return "Problema nu are solutie admisibila (sistem incompatibil)."
 
         self.solutie_detaliata = {}

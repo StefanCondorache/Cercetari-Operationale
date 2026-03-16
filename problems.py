@@ -7,7 +7,6 @@ MM = 0 # exp >= b
 mm = 1 # exp <= b
 eg = 2 # exp = b
 
-M = np.float64(10**6)
 data_type = np.float64
 
 problems = {
@@ -443,7 +442,68 @@ problems = {
         ], dtype=data_type), 
         "inegalitate":  np.array([mm, mm, mm, mm, mm, mm, MM, eg, MM, mm], dtype=int),     
         "b":            np.array([5000, 8000, 3000, 10000, 2000, 4000, 200, 0, 1000, 500], dtype=data_type)
-    }
+    },
+
+    "problema_ciclu_beale": {
+    "OPT":         MAX,
+    "coef":        np.array([-2, 150, -1/50, 6], dtype=data_type),
+    "MatriceA":    np.array([
+        [ 0.25,  -8,   -1,    9],
+        [ 0.5,  -12,  -0.5,  12],
+        [ 0,      0,   1,     0]
+    ], dtype=data_type),
+    "inegalitate": np.array([mm, mm, mm], dtype=int),
+    "b":           np.array([0, 0, 1], dtype=data_type)
+    },
+
+    "problema_ciclu_bland": {
+    "OPT":         MAX,
+    "coef":        np.array([10, -57, -9, -24], dtype=data_type),
+    "MatriceA":    np.array([
+        [ 0.5,  -5.5,  -2.5,   9],
+        [ 0.5,  -1.5,  -0.5,   1],
+        [ 1,     0,     0,     0]
+    ], dtype=data_type),
+    "inegalitate": np.array([mm, mm, mm], dtype=int),
+    "b":           np.array([0, 0, 1], dtype=data_type)
+    },
+
+    "problema_ciclu_minimal_2x4": {
+        "OPT":         MAX,
+        "coef":        np.array([1, -2, 1, -2], dtype=data_type),
+        "MatriceA":    np.array([
+            [ 0.5, -3.5, -2.0,  4.0],
+            [ 0.5, -1.0, -0.5,  0.5],
+            [ 1.0,  0.0,  0.0,  0.0]
+        ], dtype=data_type),
+        "inegalitate": np.array([mm, mm, mm], dtype=int),
+        "b":           np.array([0, 0, 1], dtype=data_type)
+    },
+
+    "problema_degenerare_complexa_4x4": {
+        "OPT":         MAX,
+        "coef":        np.array([10, -4, 5, -6], dtype=data_type),
+        "MatriceA":    np.array([
+            [ 1.0, -1.0,  2.0, -1.0],
+            [ 2.0, -1.0,  0.0,  1.0],
+            [ 0.0,  2.0, -1.0,  2.0],
+            [ 1.0,  1.0,  1.0,  1.0]
+        ], dtype=data_type),
+        "inegalitate": np.array([mm, mm, mm, mm], dtype=int),
+        "b":           np.array([0, 0, 0, 10], dtype=data_type)
+    },
+
+    "problema_ciclu_marshall": {
+        "OPT":         MAX,
+        "coef":        np.array([2, -3, 1, -12], dtype=data_type),
+        "MatriceA":    np.array([
+            [-2.0, -9.0,  1.0,  9.0],
+            [ 1/3,  1.0, -1/3, -2.0],
+            [ 1.0,  0.0,  0.0,  0.0]
+        ], dtype=data_type),
+        "inegalitate": np.array([mm, mm, mm], dtype=int),
+        "b":           np.array([0, 0, 2], dtype=data_type)
+    },
 }
 
-__all__ = ["MIN", "MAX", "mm", "MM", "eg", "M", "data_type", "problems"]
+__all__ = ["MIN", "MAX", "mm", "MM", "eg", "data_type", "problems"]
