@@ -5,22 +5,47 @@ from math import comb
 class Simplex:
 
     def afisare(self):
-        print("Coef: ", self.coef, end='\n')
-        print("C_b: ", self.C_b, end='\n')
-        print("Baza: ", self.iBaza, end='\n')
-        print("X_b: ",self.X_b, end='\n')
-        print("Z: ", self.Z, end='\n')
-        print("Delta: ", self.Delta, end='\n')
-        print("A: \n", self.MatriceA, end='\n')
+        n_var = len(self.coef)
+        n_con = self.MatriceA.shape[0]
+
+        # Anteturi coloane
+        col_w = 20
+        header = f"{'':>8}" + "".join(f"{'a'+str(j+1):>{col_w}}" for j in range(n_var))
+        separator = "-" * len(header)
+
+        print(separator)
+
+        # Coef (c)
+        print(f"{'c':>8}" + "".join(f"{v:>{col_w}.4g}" for v in self.coef))
+        print(separator)
+
+        # Matricea A cu C_b, iBaza, X_b
+        for i in range(n_con):
+            var_idx = int(self.iBaza[i])
+            var_name = f"a{var_idx+1}"
+            row  = f"{var_name:>4}"
+            row += f"{self.C_b[i]:>4.4g}"
+            row += "".join(f"{self.MatriceA[i,j]:>{col_w}.4g}" for j in range(n_var))
+            row += f"  | {self.X_b[i]:>{col_w}.4g}"
+            print(row)
+
+        print(separator)
+
+        # Delta
+        print(f"{'Delta':>8}" + "".join(f"{v:>{col_w}.4g}" for v in self.Delta))
+
+        # Z
+        print(f"{'Z':>8}" + f"{self.Z:>{col_w}.4g}")
+        print(separator)
 
     def solve(self, data_type, **prob):
 
         self.coef           = prob["coef"].astype(data_type)
         self.MatriceA       = prob["MatriceA"].astype(data_type)
         self.b              = prob["b"].astype(data_type)
-        self.M = max(np.max(np.abs(self.coef)), 
-                     np.max(np.abs(self.MatriceA)),
-                     np.max(np.abs(self.b))) * 10**6
+        self.M              = max(np.max(np.abs(self.coef)), 
+                                  np.max(np.abs(self.MatriceA)),
+                                  np.max(np.abs(self.b))) * 10**6
         self.inegalitate    = prob["inegalitate"]
         self.OPT            = prob["OPT"]
         self.nr_variabile   = prob["coef"].shape[0]
@@ -143,7 +168,9 @@ class Simplex:
             Min                             = min(list1)
             iese_din_baza                   = list1.index(Min)
             
-            Pivot                            = self.MatriceA[iese_din_baza, intra_in_baza]
+            Pivot                           = self.MatriceA[iese_din_baza, intra_in_baza]
+            assert Pivot > 0,               'Pivotul nu poate fi negativ'
+
             self.X_b[iese_din_baza]         /= Pivot; 
             self.MatriceA[iese_din_baza]    /= Pivot
             
@@ -198,7 +225,7 @@ class Simplex:
         coeficienti = self.coef[:self.nr_variabile]
         Z_calculat  = np.float64(np.dot(valori, coeficienti.T))
 
-        if abs(Z_calculat - np.float64(self.Z)) <= 1e-3:
+        if abs(Z_calculat - np.float64(self.Z)) <= 1e-6:
             result[1] = True
         else:
             result[1] = False
@@ -206,7 +233,7 @@ class Simplex:
         # Verificarea 3
         S = self.Matrix_initial[:, self.iBaza.astype(int)]
 
-        if np.allclose(self.Baza_I0, np.dot(S, self.Baza_I_stop), atol=1e-3):
+        if np.allclose(self.Baza_I0, np.dot(S, self.Baza_I_stop), atol=1e-6):
             result[2] = True
         else:
             result[2] = False
