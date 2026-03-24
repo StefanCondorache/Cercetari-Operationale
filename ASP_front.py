@@ -177,9 +177,8 @@ class LinearUI(QWidget):
         
         c, A, s, b = self.get_numpy_data()
     
-        # Determine OPT
         opt_str = self.opt_combo.currentText()
-        OPT = -1 if opt_str == "MAX" else 1  # matches Simplex expectation
+        OPT = -1 if opt_str == "MAX" else 1
     
         prob = {
             "coef": c,
@@ -192,7 +191,6 @@ class LinearUI(QWidget):
         solution_detaliata = self.solver.solve(np.float64, **prob)
         verify_result = self.solver.verify()
     
-        # Check if the solver returned an error string
         if isinstance(solution_detaliata, str):
             from PySide6.QtWidgets import QMessageBox
             msg = QMessageBox()
@@ -200,8 +198,7 @@ class LinearUI(QWidget):
             msg.setText(solution_detaliata)
             msg.exec()
             return
-    
-        # Show output window if solution is valid
+
         self.output_window = OutputWindow(solution_detaliata, verify_result)
         self.output_window.show()
 
