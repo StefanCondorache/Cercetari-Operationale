@@ -38,7 +38,7 @@ class Simplex:
         print(f"{'Z':>8}" + f"{self.Z:>{col_w}.4g}")
         print(separator)
 
-    def solve(self, data_type, **prob):
+    def solve(self, data_type, with_table: bool = False, **prob):
 
         self.coef           = prob["coef"].astype(data_type)
         self.MatriceA       = prob["MatriceA"].astype(data_type)
@@ -135,13 +135,11 @@ class Simplex:
             
             temp                    = self.Z
             self.Z                  = np.dot(self.C_b, self.X_b.T)
-            
-            if temp is not None:
-                if self.OPT == MAX and self.Z >= temp: print("z creste - corect")
-                elif self.OPT == MIN and self.Z <= temp: print("z descreste - corect")
-                else: 
-                    return "z nu evolueaza corect"
+            msg                     = "z nu evolueaza corect"
 
+            if temp is not None:
+                if self.OPT == MAX: assert self.Z >= temp, msg
+                elif self.OPT == MIN: assert self.Z <= temp, msg
 
             produs      = np.dot(self.C_b, self.MatriceA)
             self.Delta  = self.coef - produs
@@ -151,7 +149,7 @@ class Simplex:
             elif self.OPT == MIN:
                 optim = all(d >= 0 for d in self.Delta)
             
-            #self.afisare()
+            if with_table: self.afisare()
             if optim : break
 
             # Conditia de intrare in baza
@@ -205,40 +203,53 @@ class Simplex:
 
         return self.solutie_detaliata
     
-    def verify(self) -> list[bool]:
+    def verify(self):
         
         result = [False, False, False]
 
-        if self.Baza_I_stop.size == 0:
-            return result
+        if self.Baza_I_stop.size == 0 or len(self.solutie) != len(self.solutie_detaliata):
+            return {"result": result, "msg": "Solutia detaliata nu a fost generata."}
 
         # Verificarea 1
-        for x in self.solutie:
+        msg1 = ""
+        for i, x in enumerate(self.solutie):
             if x < 0:
                 result[0] = False
+                msg1 += f"{list(self.solutie_detaliata.keys())[i]} < 0; "
                 break
             else:
                 result[0] = True
+                msg1 += f"{list(self.solutie_detaliata.keys())[i]} > 0; "
 
         # Verificarea 2
         valori      = self.solutie[:self.nr_variabile]
         coeficienti = self.coef[:self.nr_variabile]
         Z_calculat  = np.float64(np.dot(valori, coeficienti.T))
+        msg2        = ("".join(f"{valori[i]}*{coeficienti[i]} + " for i in range(len(valori))))[:-3]
 
         if abs(Z_calculat - np.float64(self.Z)) <= 1e-6:
             result[1] = True
+            msg2     += " = " + str(Z_calculat) + " = Z "
         else:
             result[1] = False
+            msg2     += " != " + str(Z_calculat) + " = Z "
 
         # Verificarea 3
-        S = self.Matrix_initial[:, self.iBaza.astype(int)]
+        S    = self.Matrix_initial[:, self.iBaza.astype(int)]
 
         if np.allclose(self.Baza_I0, np.dot(S, self.Baza_I_stop), atol=1e-6):
             result[2] = True
         else:
             result[2] = False
 
-        return result
+        return {"result": result,
+                "Verificarea1:": msg1,
+                "Verificarea2:": msg2,
+                "Verificarea3:": {"Baza_I0"     : self.Baza_I0,
+                                  "S"           : S,
+                                  "Baza_I0_stop": self.Baza_I_stop
+                                  }
+                }
 
 if __name__ == '__main__':
     
@@ -248,5 +259,5 @@ if __name__ == '__main__':
         print(problem, end='\n')
         sol = solver.solve(data_type, **problems[problem])
         result = solver.verify()
-        print("Solutia: ", sol)
+        #print("Solutia: ", sol)
         print("Verificarea: ", result, end='\n\n')
