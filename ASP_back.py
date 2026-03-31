@@ -1,3 +1,6 @@
+# Copyright (c) 2026 Condorache Ștefan-Eugen. All rights reserved.
+# Licensed under the MIT License.
+
 import numpy as np
 from problems import *
 from math import comb
@@ -40,47 +43,112 @@ class Simplex:
 
     def solve(self, data_type, with_table: bool = False, **prob):
 
-        self.coef           = prob["coef"].astype(data_type)
-        self.MatriceA       = prob["MatriceA"].astype(data_type)
+        """
+        "instance_of_problem" : {
+            "OPT":          MAX,                                            
+            "coef":         np.array([c_1, c_2, ... , c_n], dtype=data_type),
+            "MatriceA":     np.array([[a_11, a_12, ... , a_1n], 
+                                      [a_21, a_22, ... , a_2n], 
+                                      
+                                      ...
+                                      
+                                      [a_m1, a_m2, ... , a_mn]], dtype=data_type), 
+            "inegalitate":  np.array([ mm/MM/eg x m-times ], dtype=int),     
+            "b":            np.array([b_1, b_2, ... , b_m], dtype=data_type),
+            "x":            np.array([ mm/MM/eg(='R') x n-times], dtype=int)
+        },
+        """
+
+        coef_initial        = prob["coef"].astype(data_type)
+        MatriceA_initial    = prob["MatriceA"].astype(data_type)
+    
         self.b              = prob["b"].astype(data_type)
-        self.M              = max(np.max(np.abs(self.coef)), 
-                                  np.max(np.abs(self.MatriceA)),
-                                  np.max(np.abs(self.b))) * 10**6
         self.inegalitate    = prob["inegalitate"]
         self.OPT            = prob["OPT"]
-        self.nr_variabile   = prob["coef"].shape[0]
+        
+        self.nr_variabile = coef_initial.shape[0]
+        self.x              = prob.get('x', np.full(self.nr_variabile, MM, dtype=int)) # default x >= 0
 
-        self.Baza_I0        = np.array([])
-        self.S_I_stop       = np.array([])
-        self.Baza_I_stop    = np.array([])
-
-        self.istoric_variabile = []
-        for i in range(self.nr_variabile):
-            self.istoric_variabile.append({
-                "nume": f"x{i+1}", 
-                "tip": "decizie", 
-                "coeficient": self.coef[i]
-            })
-
-        assert self.MatriceA.shape[0] == self.b.shape[0],             'numarul de ecuatii trebuie sa coincida cu numarul de elemnte din b'
-        assert self.MatriceA.shape[1] == self.coef.shape[0],          'dimensiunea lui x trebuie sa fie egala cu dimensiunea lui c'
-        assert self.MatriceA.shape[0] == self.inegalitate.shape[0],   'trebuie sa fiu acelasi numar de inegalitati ca si numarul de ecuatii '
-        assert self.OPT in (-1, 1),                                   'Optimul poate fi doar 1 (MIN) sau -1 (MAX)'
-
-        print("Algoritmul Simplex Primal presupune ca in conditia-3: x >= 0; (default)", end='\n')
+        assert MatriceA_initial.shape[0] == prob["b"].shape[0],          'Numarul de ecuatii trebuie sa coincida cu numarul de elemente din b'
+        assert MatriceA_initial.shape[1] == prob["coef"].shape[0],       'Dimensiunea lui x trebuie sa fie egala cu dimensiunea lui c'
+        assert MatriceA_initial.shape[0] == prob["inegalitate"].shape[0],'Trebuie sa fie acelasi numar de inegalitati ca si numarul de ecuatii'
+        assert self.x.shape[0]           == prob["coef"].shape[0],       'Trebuie sa fie acelasi numar de variabile pentru conditia 3'
+        assert self.OPT                  in (-1, 1),                     'Optimul poate fi doar 1 (MIN) sau -1 (MAX)'
+        assert np.all(np.isin(self.inegalitate, [0, 1, 2])),             'Exista doar mai mare egal (0); mai mic egal (1); egal (2)'
+        assert np.all(np.isin(self.x, [0, 1, 2])),                       'Semnele lui x pot fi doar: >= 0 (MM=0), <= 0 (mm=1), sau R (eg=2)'
 
         # Verificarea b_i >= 0, pentru toate i >= 0
         for i, b_i in enumerate(self.b):
             if b_i < 0:
                 self.b[i] = np.abs(self.b[i])
-                self.MatriceA[i] = -self.MatriceA[i]
+                MatriceA_initial[i] = -MatriceA_initial[i]
                 print(f"ecuatia {i} a fost inmultita cu -1", end="\n")
                 if self.inegalitate[i] in (MM, mm):
                     self.inegalitate[i] = mm if self.inegalitate[i] == MM else MM
 
-        # Regulla 1: skip deoarece se considera implicit x >= 0
-        # Regula 2
+        # Regula 1
+        self.mapare_decizie = {}
+        
+        new_coef = []
+        new_MatriceA_cols = []
+        new_x = []
+        
+        col_curenta = 0
 
+        for i in range(self.nr_variabile):
+            semn  = self.x[i] 
+            c_val = coef_initial[i] 
+            col_A = MatriceA_initial[:, i] 
+
+            if semn == MM:
+                # Cazul 1: x >= 0
+                new_coef.append(c_val)
+                new_MatriceA_cols.append(col_A)
+                new_x.append(MM)
+                
+                self.mapare_decizie[i] = {'tip': 'normal', 'idx': [col_curenta]}
+                col_curenta += 1
+
+            elif semn == mm:
+                # Cazul 2: x <= 0
+                new_coef.append(-c_val)
+                new_MatriceA_cols.append(-col_A)
+                new_x.append(MM) # Variabila transformata este acum >= 0
+                
+                self.mapare_decizie[i] = {'tip': 'negativ', 'idx': [col_curenta]}
+                col_curenta += 1
+
+            elif semn == eg:
+                # Cazul 3: x apartine R
+                # (x')
+                new_coef.append(c_val)
+                new_MatriceA_cols.append(col_A)
+                new_x.append(MM)
+                
+                # (x'')
+                new_coef.append(-c_val)
+                new_MatriceA_cols.append(-col_A)
+                new_x.append(MM)
+                
+                self.mapare_decizie[i] = {'tip': 'libera', 'idx': [col_curenta, col_curenta + 1]}
+                col_curenta += 2
+
+        self.coef = np.array(new_coef, dtype=data_type)
+        self.MatriceA = np.column_stack(new_MatriceA_cols)
+        self.x = np.array(new_x, dtype=int)
+        
+        self.nr_variabile = col_curenta 
+        self.M              = max(np.max(np.abs(self.coef)), 
+                                  np.max(np.abs(self.MatriceA)),
+                                  np.max(np.abs(self.b))) * 10**6
+                                  
+        self.Baza_I0        = np.array([])
+        self.S_I_stop       = np.array([])
+        self.Baza_I_stop    = np.array([])
+        
+        self.istoric_variabile = []
+
+        # Regula 2
         for i, semn in enumerate(self.inegalitate):
             if semn == mm:
                 self.coef = np.append(self.coef, 0)
@@ -99,7 +167,7 @@ class Simplex:
                 self.coef = np.append(self.coef, self.OPT*self.M)
                 col = np.zeros((len(self.inegalitate),), dtype=data_type); col[i] = 1
                 self.MatriceA = np.column_stack([self.MatriceA, col])
-                self.istoric_variabile.append({"nume": f"z{i+1}", "tip": "artificial", "coeficient": self.OPT*self.M})
+                self.istoric_variabile.append({"nume": f"z{i+1}", "tip": "artificial (>=)", "coeficient": self.OPT*self.M})
 
         self.C_b             = np.zeros(self.MatriceA.shape[0])
         self.X_b             = np.copy(self.b)
@@ -158,7 +226,7 @@ class Simplex:
 
             # Conditia de iesire din baza
             pivot_col                       = self.MatriceA[:, intra_in_baza]
-            list1                           = [ (self.X_b[i] / pivot_col[i]) if pivot_col[i] > 0 else np.inf for i in range(self.X_b.shape[0]) ]
+            list1                           = [ (self.X_b[i] / pivot_col[i]) if pivot_col[i] > 1e-9 else np.inf for i in range(self.X_b.shape[0]) ]
 
             if all(ratio == np.inf for ratio in list1):
                 return "Problema are solutie nemarginita (Z tinde la infinit)."
@@ -194,9 +262,33 @@ class Simplex:
                 return "Problema nu are solutie admisibila (sistem incompatibil)."
 
         self.solutie_detaliata = {}
+        for i in range(prob["coef"].shape[0]):
+            info = self.mapare_decizie[i]
+            tip = info['tip']
+            indici = info['idx']
+            nume = f"x{i+1}"
+            coef_orig = prob["coef"][i]
+
+            if tip == 'normal':
+                val = self.solutie[indici[0]]
+                tip_str = "decizie (>= 0)"
+            elif tip == 'negativ':
+                val = -self.solutie[indici[0]]
+                tip_str = "decizie (<= 0)"
+            elif tip == 'libera':
+                val = self.solutie[indici[0]] - self.solutie[indici[1]]
+                tip_str = "decizie (∈ R)"
+
+            self.solutie_detaliata[nume] = {
+                "valoare": round(float(val), 4), #type: ignore[tip va fi mereu normal, negativ sau libera] 
+                "tip": tip_str,                  #type: ignore[de aceea error alert poate fi ignorata]
+                "coef_obiectiv": coef_orig
+            }
+
         for j, info in enumerate(self.istoric_variabile):
+            idx_solutie = self.nr_variabile + j
             self.solutie_detaliata[info["nume"]] = {
-                "valoare": round(float(self.solutie[j]), 4),
+                "valoare": round(float(self.solutie[idx_solutie]), 4),
                 "tip": info["tip"],
                 "coef_obiectiv": info["coeficient"]
             }
@@ -207,19 +299,16 @@ class Simplex:
         
         result = [False, False, False]
 
-        if self.Baza_I_stop.size == 0 or len(self.solutie) != len(self.solutie_detaliata):
+        if self.Baza_I_stop.size == 0 or not hasattr(self, 'solutie_detaliata'):
             return {"result": result, "msg": "Solutia detaliata nu a fost generata."}
 
-        # Verificarea 1
-        msg1 = ""
+        msg1 = "Toate variabilele interne respecta conditia x >= 0."
+        result[0] = True
         for i, x in enumerate(self.solutie):
-            if x < 0:
+            if x < -1e-6:
                 result[0] = False
-                msg1 += f"{list(self.solutie_detaliata.keys())[i]} < 0; "
+                msg1 = f"Eroare: Variabila interna {i} are valoarea {x} < 0"
                 break
-            else:
-                result[0] = True
-                msg1 += f"{list(self.solutie_detaliata.keys())[i]} > 0; "
 
         # Verificarea 2
         valori      = self.solutie[:self.nr_variabile]
@@ -234,7 +323,7 @@ class Simplex:
             result[1] = False
             msg2     += " != " + str(Z_calculat) + " = Z "
 
-        # Verificarea 3
+        # Verificarea 3 (ramane identica)
         S    = self.Matrix_initial[:, self.iBaza.astype(int)]
 
         if np.allclose(self.Baza_I0, np.dot(S, self.Baza_I_stop), atol=1e-6):
@@ -245,10 +334,7 @@ class Simplex:
         return {"result": result,
                 "Verificarea1:": msg1,
                 "Verificarea2:": msg2,
-                "Verificarea3:": {"Baza_I0"     : self.Baza_I0,
-                                  "S"           : S,
-                                  "Baza_I0_stop": self.Baza_I_stop
-                                  }
+                "Verificarea3:": {"Baza_I0": self.Baza_I0, "S": S, "Baza_I0_stop": self.Baza_I_stop}
                 }
 
 if __name__ == '__main__':
@@ -259,5 +345,5 @@ if __name__ == '__main__':
         print(problem, end='\n')
         sol = solver.solve(data_type, **problems[problem])
         result = solver.verify()
-        #print("Solutia: ", sol)
+        print("Solutia: ", sol)
         print("Verificarea: ", result, end='\n\n')
