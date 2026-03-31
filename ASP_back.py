@@ -3,6 +3,8 @@
 
 import numpy as np
 from problems import *
+from problem_generator import generate_problem
+from fractions import Fraction
 from math import comb
 
 class Simplex:
@@ -10,36 +12,80 @@ class Simplex:
     def afisare(self):
         n_var = len(self.coef)
         n_con = self.MatriceA.shape[0]
+        # Preluam valoarea M folosita in algoritm
+        M_val = getattr(self, 'M', 1e7)
 
-        # Anteturi coloane
-        col_w = 20
-        header = f"{'':>8}" + "".join(f"{'a'+str(j+1):>{col_w}}" for j in range(n_var))
-        separator = "-" * len(header)
+        def format_val(val):
+            """Converteste float in fractie simbolica, gestionand zgomotul Big-M."""
+            if abs(val) > M_val * 0.1:  # Prag pentru a detecta prezenta lui M
+                # Calculam de cate ori intra M in valoare
+                multi = round(val / M_val)
+                rem = val - (multi * M_val)
 
-        print(separator)
+                # Construim string-ul pentru componenta M
+                if multi == 1: sign = "M"
+                elif multi == -1: sign = "-M"
+                else: sign = f"{multi}M"
 
-        # Coef (c)
-        print(f"{'c':>8}" + "".join(f"{v:>{col_w}.4g}" for v in self.coef))
-        print(separator)
+                # Adaugam restul daca este semnificativ
+                if abs(rem) < 1e-4:
+                    return sign
+                else:
+                    frac_part = Fraction(float(rem)).limit_denominator(1000)
+                    return f"{sign}{'+' if rem > 0 else ''}{frac_part}"
 
-        # Matricea A cu C_b, iBaza, X_b
+            # Formatare standard pentru numere fara M
+            if abs(val) < 1e-9: return "0"
+            return str(Fraction(float(val)).limit_denominator(1000))
+
+        # --- Pasul 1: Calculam latimile coloanelor pentru aliniere perfecta ---
+        col_widths = []
+        for j in range(n_var):
+            content = [f"a{j+1}", format_val(self.coef[j]), format_val(self.Delta[j])]
+            content += [format_val(self.MatriceA[i, j]) for i in range(n_con)]
+            col_widths.append(max(len(c) for c in content) + 2)
+
+        xb_width = max(len(format_val(x)) for x in self.X_b) + 2
+        xb_width = max(xb_width, len(format_val(self.Z)) + 2, 10)
+
+        # --- Pasul 2: Constructie Tabel ---
+        header = f"{'Baza':<7} | {'Cb':<10} |"
+        for j in range(n_var):
+            header += f"{'a'+str(j+1):>{col_widths[j]}}"
+        header += f" | {'Xb':>{xb_width}}"
+
+        sep = "-" * len(header)
+
+        print(f"\n{header}")
+        print(sep)
+
+        # Randul coeficientilor c
+        c_line = f"{'':<7} | {'c':<10} |"
+        for j in range(n_var):
+            c_line += f"{format_val(self.coef[j]):>{col_widths[j]}}"
+        print(c_line)
+        print(sep)
+
+        # Liniile matricii (Corpul)
         for i in range(n_con):
-            var_idx = int(self.iBaza[i])
-            var_name = f"a{var_idx+1}"
-            row  = f"{var_name:>4}"
-            row += f"{self.C_b[i]:>4.4g}"
-            row += "".join(f"{self.MatriceA[i,j]:>{col_w}.4g}" for j in range(n_var))
-            row += f"  | {self.X_b[i]:>{col_w}.4g}"
-            print(row)
+            var_name = f"a{int(self.iBaza[i])+1}"
+            cb_val = format_val(self.C_b[i])
 
-        print(separator)
+            row_str = f"{var_name:<7} | {cb_val:<10} |"
+            for j in range(n_var):
+                row_str += f"{format_val(self.MatriceA[i, j]):>{col_widths[j]}}"
+            row_str += f" | {format_val(self.X_b[i]):>{xb_width}}"
+            print(row_str)
 
-        # Delta
-        print(f"{'Delta':>8}" + "".join(f"{v:>{col_w}.4g}" for v in self.Delta))
+        print(sep)
 
-        # Z
-        print(f"{'Z':>8}" + f"{self.Z:>{col_w}.4g}")
-        print(separator)
+        # Randul Delta (acum Delta este sub coloane, Z este la final sub Xb)
+        delta_line = f"{'Delta':<7} | {'':<10} |"
+        for j in range(n_var):
+            delta_line += f"{format_val(self.Delta[j]):>{col_widths[j]}}"
+        delta_line += f" | {'Z = ' + format_val(self.Z):>{xb_width}}"
+        print(delta_line)
+        print("=" * len(header) + "\n")
 
     def solve(self, data_type, with_table: bool = False, **prob):
 
@@ -341,9 +387,18 @@ if __name__ == '__main__':
     
     solver = Simplex()
 
-    for problem in problems.keys():
-        print(problem, end='\n')
-        sol = solver.solve(data_type, **problems[problem])
-        result = solver.verify()
+    if eval(input("1 - test cases; 2 - random problem :   ")) == 1:
+        for problem in problems.keys():
+            print(problem, end='\n')
+            sol = solver.solve(data_type, **problems[problem])
+            result = solver.verify()
+            #print("Solutia: ", sol)
+            #print("Verificarea: ", result, end='\n\n')
+            solver.afisare()
+    else:
+        m = int(input("Dimensiunea m: "))
+        n = int(input("Dimensiunea n: "))
+        sol = solver.solve(data_type, **generate_problem(m,n))
+        ver = solver.verify()
         print("Solutia: ", sol)
-        print("Verificarea: ", result, end='\n\n')
+        print("Verificarea: ", ver, end='\n\n')
