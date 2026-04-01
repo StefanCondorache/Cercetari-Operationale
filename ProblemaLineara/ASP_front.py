@@ -9,8 +9,8 @@ from PySide6.QtWidgets import (
     QScrollArea
 )
 from PySide6.QtGui import QFont
-from ASP_back import Simplex
-from problems import mm, MM, eg, MAX, MIN
+from ProblemaLineara.ASP_back import Simplex
+from ProblemaLineara.problems import mm, MM, eg, MAX, MIN
 
 # ----------------------------
 # Fereastra output solutie

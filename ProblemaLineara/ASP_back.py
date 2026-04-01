@@ -2,8 +2,8 @@
 # Licensed under the MIT License.
 
 import numpy as np
-from problems import *
-from problem_generator import generate_problem
+from ProblemaLineara.problems import *
+from ProblemaLineara.problem_generator import generate_problem
 from fractions import Fraction
 from math import comb
 

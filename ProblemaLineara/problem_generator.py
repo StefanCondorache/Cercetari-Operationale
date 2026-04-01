@@ -1,5 +1,5 @@
 import numpy as np
-from problems import *
+from ProblemaLineara.problems import *
 
 def generate_problem(n=15, m=15):
 
