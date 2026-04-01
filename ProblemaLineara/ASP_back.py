@@ -159,7 +159,7 @@ class Simplex:
                 # Cazul 2: x <= 0
                 new_coef.append(-c_val)
                 new_MatriceA_cols.append(-col_A)
-                new_x.append(MM) # Variabila transformata este acum >= 0
+                new_x.append(MM)
                 
                 self.mapare_decizie[i] = {'tip': 'negativ', 'idx': [col_curenta]}
                 col_curenta += 1
@@ -226,8 +226,8 @@ class Simplex:
         Identitate           = np.eye(self.MatriceA.shape[0])
         self.Delta           = np.zeros(self.coef.shape[0])
         
-        self.Baza_I0        = np.copy(self.X_b)
-        self.Matrix_initial = np.copy(self.MatriceA)
+        self.Baza_I0         = np.copy(self.X_b)
+        self.Matrix_initial  = np.copy(self.MatriceA)
 
         for j, victor in enumerate(self.MatriceA.T):
             if np.all(np.sort(victor) == victor_unique):
@@ -402,3 +402,4 @@ if __name__ == '__main__':
         ver = solver.verify()
         print("Solutia: ", sol)
         print("Verificarea: ", ver, end='\n\n')
+        solver.afisare()
