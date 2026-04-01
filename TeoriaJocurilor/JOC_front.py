@@ -1,3 +1,6 @@
+# Copyright (c) 2026 Condorache Ștefan-Eugen. All rights reserved.
+# Licensed under the MIT License.
+
 import sys
 import numpy as np
 from fractions import Fraction

@@ -1,3 +1,6 @@
+# Copyright (c) 2026 Condorache Ștefan-Eugen. All rights reserved.
+# Licensed under the MIT License.
+
 import numpy as np
 from ProblemaLineara.problems import MAX, data_type
 from ProblemaLineara.ASP_back import Simplex

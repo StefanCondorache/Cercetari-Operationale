@@ -24,7 +24,7 @@ The repository is divided into independent modules based on the field of study. 
 To run any of the modules or graphical interfaces in this repository, you will need Python 3 installed along with the following libraries:
 
 ```bash
-pip install numpy PySide6
+pip install -r requirements.txt
 ```
 *(Note: Python's built-in `fractions` and `math` libraries are also utilized heavily for mathematical exactness).*
 
