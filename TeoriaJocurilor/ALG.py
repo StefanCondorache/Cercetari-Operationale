@@ -5,12 +5,8 @@ from TeoriaJocurilor.utils import afisare_tabel
 
 from fractions import Fraction
 
-def format_joc_val(val):
-    if abs(val) < 1e-9: return "0"
-    return str(Fraction(float(val)).limit_denominator(1000))
-
 class Joc:
-    def solve(self, data_type, Matrice, with_table:bool = False,):
+    def solve(self, data_type, Matrice, with_table:bool = False):
 
         self.MatriceQ = Matrice.astype(data_type)
 
@@ -32,21 +28,24 @@ class Joc:
             self.Y_optim = np.zeros(self.MatriceQ.shape[1])
             self.Y_optim[np.where(beta == self.v2)] = 1
 
-            # Normalizare in caz ca exista mai multe puncte sa
             self.X_optim = self.X_optim / np.sum(self.X_optim)
             self.Y_optim = self.Y_optim / np.sum(self.Y_optim)
+
+            v_raport = Fraction(float(self.v)).limit_denominator(1000)
+            x_raport = np.array([Fraction(float(x)).limit_denominator(1000) for x in self.X_optim])
+            y_raport = np.array([Fraction(float(y)).limit_denominator(1000) for y in self.Y_optim])
 
             return {
                 "status": "success",
                 "tip_strategie": "pura",
                 "sol": {
-                    "v"      : self.v, 
-                    "X_optim": self.X_optim, 
-                    "Y_optim": self.Y_optim
+                    "v"      : v_raport, 
+                    "X_optim": x_raport, 
+                    "Y_optim": y_raport
                 },
                 "msg": {
-                    "A": f"Primul jucător câștigă {self.v} unități.",
-                    "B": f"Al doilea jucător pierde {self.v} unități."
+                    "A": f"Primul jucător câștigă {v_raport} unități.",
+                    "B": f"Al doilea jucător pierde {v_raport} unități."
                 }
             }
 
@@ -65,7 +64,6 @@ class Joc:
             solver = Simplex()
             solution = solver.solve(data_type, with_table, **Problema_liniara_b)
             
-            # Tratare erori algoritm Simplex (ciclare, nemarginit, etc.)
             if isinstance(solution, str):
                 return {
                     "status": "other",
@@ -84,16 +82,20 @@ class Joc:
             Y_B = np.array([info['valoare'] for info in list(solution.values())[:n_vars]])
             self.Y_optim = self.v * Y_B
 
+            v_raport = Fraction(float(self.v)).limit_denominator(1000)
+            x_raport = np.array([Fraction(float(x)).limit_denominator(1000) for x in self.X_optim])
+            y_raport = np.array([Fraction(float(y)).limit_denominator(1000) for y in self.Y_optim])
+
             return {
                 "status": "success",
                 "tip_strategie": "mixta",
                 "sol": {
-                    "v"      : self.v, 
-                    "X_optim": self.X_optim, 
-                    "Y_optim": self.Y_optim
+                    "v"      : v_raport, 
+                    "X_optim": x_raport, 
+                    "Y_optim": y_raport
                 },
                 "msg": {
-                    "A": f"Valoarea jocului este {self.v:.4f} unități.",
+                    "A": f"Valoarea jocului este {v_raport} unități.",
                     "B": "Ambele părți folosesc strategii mixte."
                 }
             }
@@ -152,14 +154,24 @@ class Joc:
 
 if __name__ == '__main__':
 
-    Matrice = np.array([
+    Matrice1 = np.array([
             [1, 1, 2],
             [3, 2, 1],
             [2, 4, 5]
         ], dtype=np.float64)
+    
+    Matrice2 = np.array([
+            [2, 3, 4],
+            [1, 5, 6],
+        ], dtype=np.float64)
 
     joc = Joc()
-    sol = joc.solve(data_type, Matrice=Matrice, with_table=True)
-    ver = joc.verify()
-    print(sol, sep='\n')
-    print(ver)
+    sol1 = joc.solve(data_type, Matrice=Matrice1, with_table=True)
+    ver1 = joc.verify()
+    print(sol1, sep='\n')
+    print(ver1)
+
+    sol2 = joc.solve(data_type, Matrice=Matrice2, with_table=True)
+    ver2 = joc.verify()
+    print(sol2, sep='\n')
+    print(ver2)
