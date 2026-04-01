@@ -128,5 +128,5 @@ It includes:
 
 ## License
 
-This project is licensed under the MIT License. [LICENCE](LICENCE)
+This project is licensed under the MIT License. [LICENCE](../LICENCE)
 You are free to use, modify, and distribute this software, as long as the original copyright and license notice are included.
