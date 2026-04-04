@@ -38,6 +38,12 @@ class Joc:
             x_raport = np.array([Fraction(float(x)).limit_denominator(1000) for x in self.X_optim])
             y_raport = np.array([Fraction(float(y)).limit_denominator(1000) for y in self.Y_optim])
 
+            msg_A = f"Primul jucător câștigă {v_raport} unități. "
+            for i, val in enumerate(x_raport): msg_A += f"Daca aplica strategia {Matrice[i]} cu probabilitatea {val}. "
+
+            msg_B = f"Al doilea jucător pierde {v_raport} unități. "
+            for i, val in enumerate(y_raport): msg_B += f"Daca aplica strategia {Matrice.T[i]} cu probabilitatea {val}. "
+
             return {
                 "status": "success",
                 "tip_strategie": "pura",
@@ -47,8 +53,8 @@ class Joc:
                     "Y_optim": y_raport
                 },
                 "msg": {
-                    "A": f"Primul jucător câștigă {v_raport} unități.",
-                    "B": f"Al doilea jucător pierde {v_raport} unități."
+                    "A": msg_A,
+                    "B": msg_B
                 }
             }
 
@@ -89,6 +95,12 @@ class Joc:
             x_raport = np.array([Fraction(float(x)).limit_denominator(1000) for x in self.X_optim])
             y_raport = np.array([Fraction(float(y)).limit_denominator(1000) for y in self.Y_optim])
 
+            msg_A = f"Primul jucător câștigă {v_raport} unități. "
+            for i, val in enumerate(x_raport): msg_A += f"Daca aplica strategia {Matrice[i]} cu probabilitatea {val}. "
+
+            msg_B = f"Al doilea jucător pierde {v_raport} unități. "
+            for i, val in enumerate(y_raport): msg_B += f"Daca aplica strategia {Matrice.T[i]} cu probabilitatea {val}. "
+
             return {
                 "status": "success",
                 "tip_strategie": "mixta",
@@ -98,8 +110,8 @@ class Joc:
                     "Y_optim": y_raport
                 },
                 "msg": {
-                    "A": f"Valoarea jocului este {v_raport} unități.",
-                    "B": "Ambele părți folosesc strategii mixte."
+                    "A": msg_A,
+                    "B": msg_B,
                 }
             }
 
