@@ -326,7 +326,7 @@ class Simplex:
                 tip_str = "decizie (∈ R)"
 
             self.solutie_detaliata[nume] = {
-                "valoare": round(float(val), 4), #type: ignore[tip va fi mereu normal, negativ sau libera] 
+                "valoare": round(float(val), 16), #type: ignore[tip va fi mereu normal, negativ sau libera] 
                 "tip": tip_str,                  #type: ignore[de aceea error alert poate fi ignorata]
                 "coef_obiectiv": coef_orig
             }
@@ -334,7 +334,7 @@ class Simplex:
         for j, info in enumerate(self.istoric_variabile):
             idx_solutie = self.nr_variabile + j
             self.solutie_detaliata[info["nume"]] = {
-                "valoare": round(float(self.solutie[idx_solutie]), 4),
+                "valoare": round(float(self.solutie[idx_solutie]), 16),
                 "tip": info["tip"],
                 "coef_obiectiv": info["coeficient"]
             }

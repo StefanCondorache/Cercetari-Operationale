@@ -34,9 +34,9 @@ class Joc:
             self.X_optim = self.X_optim / np.sum(self.X_optim)
             self.Y_optim = self.Y_optim / np.sum(self.Y_optim)
 
-            v_raport = Fraction(float(self.v)).limit_denominator(1000)
-            x_raport = np.array([Fraction(float(x)).limit_denominator(1000) for x in self.X_optim])
-            y_raport = np.array([Fraction(float(y)).limit_denominator(1000) for y in self.Y_optim])
+            v_raport = Fraction(float(self.v)).limit_denominator(10**9)
+            x_raport = np.array([Fraction(data_type(x)).limit_denominator(10**9) for x in self.X_optim])
+            y_raport = np.array([Fraction(data_type(y)).limit_denominator(10**9) for y in self.Y_optim])
 
             msg_A = f"Primul jucător câștigă {v_raport} unități. "
             for i, val in enumerate(x_raport): msg_A += f"Daca aplica strategia {Matrice[i]} cu probabilitatea {val}. "
@@ -91,9 +91,9 @@ class Joc:
             Y_B = np.array([info['valoare'] for info in list(solution.values())[:n_vars]])
             self.Y_optim = self.v * Y_B
 
-            v_raport = Fraction(float(self.v)).limit_denominator(1000)
-            x_raport = np.array([Fraction(float(x)).limit_denominator(1000) for x in self.X_optim])
-            y_raport = np.array([Fraction(float(y)).limit_denominator(1000) for y in self.Y_optim])
+            v_raport = Fraction(data_type(self.v)).limit_denominator(10**9)
+            x_raport = np.array([Fraction(data_type(x)).limit_denominator(10**9) for x in self.X_optim])
+            y_raport = np.array([Fraction(data_type(y)).limit_denominator(10**9) for y in self.Y_optim])
 
             msg_A = f"Primul jucător câștigă {v_raport} unități. "
             for i, val in enumerate(x_raport): msg_A += f"Daca aplica strategia {Matrice[i]} cu probabilitatea {val}. "
@@ -119,13 +119,13 @@ class Joc:
         result = [False, False, False]
 
         def to_frac_array(arr):
-            return np.array([Fraction(float(x)).limit_denominator(1000) for x in arr])
+            return np.array([Fraction(data_type(x)).limit_denominator(10**9) for x in arr])
 
         X_frac = to_frac_array(self.X_optim)
         Y_frac = to_frac_array(self.Y_optim)
-        v_frac = Fraction(float(self.v)).limit_denominator(1000)
+        v_frac = Fraction(data_type(self.v)).limit_denominator(10**9)
         
-        Q_frac = np.array([[Fraction(float(val)).limit_denominator(1000) for val in row] 
+        Q_frac = np.array([[Fraction(data_type(val)).limit_denominator(10**9) for val in row] 
                            for row in self.MatriceQ])
 
         # Verificarea 1: Probabilitati pozitive
@@ -169,15 +169,27 @@ class Joc:
 
 if __name__ == '__main__':
 
+    #Matrice1 = np.array([
+    #        [1, 1, 2],
+    #        [3, 2, 1],
+    #        [2, 4, 5]
+    #    ], dtype=np.float64)
+    #
+    #Matrice2 = np.array([
+    #        [2, 3, 4],
+    #        [1, 5, 6],
+    #    ], dtype=np.float64)
+
     Matrice1 = np.array([
-            [1, 1, 2],
-            [3, 2, 1],
-            [2, 4, 5]
+            [3, 1, 4],
+            [2, 3, 3],
+            [1, 4, 2]
         ], dtype=np.float64)
     
     Matrice2 = np.array([
-            [2, 3, 4],
-            [1, 5, 6],
+            [1, 5, 2],
+            [3, 1, 4],
+            [2, 3, 3]
         ], dtype=np.float64)
 
     joc = Joc()
@@ -190,3 +202,4 @@ if __name__ == '__main__':
     ver2 = joc.verify()
     print(sol2, sep='\n')
     print(ver2)
+    
