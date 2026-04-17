@@ -65,7 +65,7 @@ class Transport:
                 print(d_row)
         print()
 
-    def solve(self, costuri, disponibil, necesitate, cu_afisare=True):
+    def solve(self, costuri, disponibil, necesitate, cu_afisare=False):
         """
         Rezolvă problema de transport folosind Metoda Nord-Vest 
         și optimizarea MODI (Distribuției Modificate / u-v).
@@ -242,11 +242,31 @@ class Transport:
         return X, baza
 
     def calculeaza_uv(self, C, baza):
-        """Rezolvarea sistemului u+v=c folosind BFS pe graful bipartit creat de bază."""
+        """Rezolvarea sistemului u+v=c folosind BFS pe graful bipartit creat de bază.
+           Optimizare: Începe cu linia sau coloana cu cele mai multe alocări."""
         m, n = C.shape
         u = np.full(m, np.nan)
         v = np.full(n, np.nan)
-        u[0] = 0 # Valoarea arbitrară start
+        
+        # --- OPTIMIZAREA TA: Găsim linia sau coloana cu cele mai multe elemente în bază ---
+        grad_linii = {i: 0 for i in range(m)}
+        grad_coloane = {j: 0 for j in range(n)}
+        
+        for i, j in baza:
+            grad_linii[i] += 1
+            grad_coloane[j] += 1
+            
+        max_linie = max(grad_linii, key=grad_linii.get)
+        max_coloana = max(grad_coloane, key=grad_coloane.get)
+        
+        # Setăm cu 0 variabila cu cel mai mare grad și o adăugăm prima în coada BFS
+        if grad_linii[max_linie] >= grad_coloane[max_coloana]:
+            u[max_linie] = 0
+            start_node = f"r_{max_linie}"
+        else:
+            v[max_coloana] = 0
+            start_node = f"c_{max_coloana}"
+        # ---------------------------------------------------------------------------------
         
         # Lista de adiacență
         adj = {f"r_{i}": [] for i in range(m)}
@@ -257,7 +277,7 @@ class Transport:
             adj[f"r_{i}"].append((f"c_{j}", C[i, j]))
             adj[f"c_{j}"].append((f"r_{i}", C[i, j]))
             
-        coada = ["r_0"]
+        coada = [start_node]
         while coada:
             curent = coada.pop(0)
             e_linie = curent.startswith("r_")
