@@ -16,6 +16,9 @@ The repository is divided into independent modules based on the field of study. 
 * 📂 [**TeoriaJocurilor/**](./TeoriaJocurilor) 
   * *Game Theory & Zero-Sum Matrix Games.*
   * Automatically calculates saddle points for pure strategies and utilizes the Simplex backend to resolve mixed-strategy probabilities.
+* 📂 [**ProblemaTransporturilor/**](./ProblemaTransporturilor)
+  * *Transportation Problem (North-West Corner & MODI Method).*
+  * Automatically balances the problem, handles degeneracy, and finds the absolute optimal minimum cost using the Stepping-Stone / u-v method.
 
 ---
 
@@ -42,6 +45,9 @@ Activate your virtual environment and run the frontend file using the `-m` flag:
 
 # To launch the Game Theory GUI
 .venv/bin/python3 -m TeoriaJocurilor.JOC_front
+
+# To launch the Transportation Problem GUI
+.venv/bin/python3 -m ProblemaTransporturilor.Transport_front
 ```
 
 ### Running a Backend / Test Suite
@@ -52,10 +58,12 @@ To run the terminal-based solvers or execute the hardcoded test problems:
 
 # To run the Game Theory backend tests
 .venv/bin/python3 -m TeoriaJocurilor.JOC_back
+
+# To run the Transportation Problem backend tests
+.venv/bin/python3 -m ProblemaTransporturilor.problems
 ```
 
 ---
 
 ## License
 This project is licensed under the MIT License. You are free to use, modify, and distribute this software, as long as the original copyright and license notice are included.
-```
