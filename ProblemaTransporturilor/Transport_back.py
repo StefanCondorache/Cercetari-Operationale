@@ -17,14 +17,14 @@ class Transport:
         # Antet coloane
         header = f"{'':<8} | "
         for j in range(n):
-            header += f"{'B'+str(j+1):<10} | "
-        header += f"{'Disp(S)':<8} | {'u_i':<8}"
+            header += f"{'B'+str(j+1):<5} x(c) | "
+        header += f"{'Disp(D)':<8} | {'u_i':<8}"
         print(header)
         print("-" * len(header))
         
         # Linii furnizori
         for i in range(m):
-            row_str = f"{'F'+str(i+1):<8} | "
+            row_str = f"{'A'+str(i+1):<8} | "
             for j in range(n):
                 # Dacă e în bază afișăm valoarea (chiar și 0 pentru degenerare), altfel '-'
                 alloc = f"{self.X[i,j]:g}" if (i, j) in self.baza else "-"
@@ -39,7 +39,7 @@ class Transport:
         print("-" * len(header))
         
         # Linie necesitate
-        nec_str = f"{'Nec(D)':<8} | "
+        nec_str = f"{'Nec(N)':<8} | "
         for j in range(n):
             nec_str += f"{self.D[j]:<10g} | "
         nec_str += f"{'':<8} | {'':<8}"
@@ -312,12 +312,12 @@ class Transport:
 if __name__ == "__main__":
     # Testarea directă din terminal
     costuri = [
-        [2, 2, 2, 1],
-        [10, 8, 5, 4],
-        [7, 6, 6, 8]
+        [4, 5, 2, 3],
+        [1, 2, 1, 3],
+        [4, 4, 5, 1]
     ]
-    disponibil = [3, 7, 5]
-    necesitate = [4, 3, 4, 4]
+    disponibil = [30, 27, 43]
+    necesitate = [25, 35, 18, 22]
     
     solver = Transport()
     print("\nLANSAM REZOLVAREA CU AFISARE IN CONSOLA:\n")
