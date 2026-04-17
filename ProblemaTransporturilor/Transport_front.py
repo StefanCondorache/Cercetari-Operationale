@@ -14,10 +14,10 @@ from PySide6.QtCore import Qt
 from ProblemaTransporturilor.Transport_back import Transport
 
 class OutputWindow(QDialog):
-    def __init__(self, result_dict, parent=None):
+    def __init__(self, result_dict, C=None, S=None, D=None, parent=None):
         super().__init__(parent)
         self.setWindowTitle("Rezultat Problema Transporturilor (MODI)")
-        self.resize(750, 650)
+        self.resize(850, 700)
 
         layout = QVBoxLayout()
         text = QTextEdit()
@@ -27,14 +27,16 @@ class OutputWindow(QDialog):
         font.setStyleHint(QFont.StyleHint.Monospace)
         text.setFont(font)
 
-        # ---------------- FORMAT OUTPUT ----------------
+        # ---------------- FORMAT OUTPUT EXACT CA IN TERMINAL ----------------
         if result_dict.get("status") == "error":
             text.setText(f"EROARE FATALĂ:\n{result_dict['msg']}")
+        elif C is None or S is None or D is None:
+            text.setText("EROARE: Datele C, S, D nu au putut fi transmise catre afisare.")
         else:
-            out_str = f"Status: REZOLVAT CU SUCCES\n"
+            out_str = "Status: REZOLVAT CU SUCCES\n"
             out_str += f"Echilibrare: {result_dict['echilibrare']}\n"
             out_str += f"Test Degenerare: {result_dict['degenerare']}\n"
-            out_str += "-" * 65 + "\n"
+            out_str += "-" * 70 + "\n"
             
             out_str += f"Costul Minim Optim (f_MIN) = {result_dict['cost_final']}\n"
             out_str += f"Numar de iteratii: {result_dict['iteratii']}\n\n"
@@ -42,19 +44,95 @@ class OutputWindow(QDialog):
             out_str += "Matricea Finala de Repartitie (X_optim):\n"
             mat = result_dict['solutie_X']
             for row in mat:
-                out_str += "[ " + "  ".join([f"{val:8.2f}" for val in row]) + " ]\n"
+                out_str += "[ " + " ".join([f"{val:8.2f}" for val in row]) + " ]\n"
 
-            out_str += "\n" + "=" * 65 + "\nJurnal Iteratii (Matrici, u, v, Delta):\n" + "=" * 65 + "\n"
-            
-            for ist in result_dict['istoric']:
-                out_str += f"\nITERATIA {ist['iteratie']} | Cost Curent = {ist['cost']}\n"
-                out_str += "-" * 35 + "\n"
-                out_str += f"Vector u (Multiplicatori Linii)   : {np.round(ist['u'], 2)}\n"
-                out_str += f"Vector v (Multiplicatori Coloane) : {np.round(ist['v'], 2)}\n\n"
+            if len(result_dict.get('istoric', [])) > 0:
+                ist_init = result_dict['istoric'][0]
+                m, n = C.shape
                 
-                out_str += "Matricea Delta (Cel mai negativ intra in baza):\n"
-                for d_row in ist['Delta']:
-                    out_str += "[ " + "  ".join([f"{val:8.2f}" for val in d_row]) + " ]\n"
+                # ---------------- SOLUTIA INITIALA ----------------
+                out_str += "\n" + "=" * 70 + "\n"
+                out_str += " SOLUȚIA INIȚIALĂ (METODA NORD-VEST)\n"
+                out_str += "=" * 70 + "\n"
+                
+                header = f"{'':<8} | "
+                for j in range(n):
+                    header += f"{'B'+str(j+1):<10} | "
+                header += f"{'Disp(D)':<8} | {'u_i':<8}\n"
+                
+                out_str += header
+                out_str += "-" * (len(header) - 1) + "\n"
+                
+                for i in range(m):
+                    row_str = f"{'A'+str(i+1):<8} | "
+                    for j in range(n):
+                        alloc = f"{ist_init['X'][i,j]:g}" if (i, j) in ist_init['baza'] else "-"
+                        cell = f"{alloc} ({C[i,j]:g})"
+                        row_str += f"{cell:<10} | "
+                    
+                    row_str += f"{S[i]:<8g} | {'-':<8}\n"
+                    out_str += row_str
+                    
+                out_str += "-" * (len(header) - 1) + "\n"
+                
+                nec_str = f"{'Nec(D)':<8} | "
+                for j in range(n):
+                    nec_str += f"{D[j]:<10g} | "
+                nec_str += f"{'':<8} | {'':<8}\n"
+                out_str += nec_str
+                
+                v_str = f"{'v_j':<8} | "
+                for j in range(n):
+                    v_str += f"{'-':<10} | "
+                out_str += v_str + "\n"
+                out_str += "-" * (len(header) - 1) + "\n"
+                
+                # ---------------- ITERATII MODI ----------------
+                for ist in result_dict['istoric']:
+                    out_str += "\n" + "=" * 70 + "\n"
+                    out_str += f" ITERAȚIA {ist['iteratie']} (ALGORITMUL MODI)\n"
+                    out_str += "=" * 70 + "\n"
+                    
+                    out_str += header
+                    out_str += "-" * (len(header) - 1) + "\n"
+                    
+                    X = ist['X']
+                    u = ist['u']
+                    v = ist['v']
+                    Delta = ist['Delta']
+                    baza = ist['baza']
+                    
+                    for i in range(m):
+                        row_str = f"{'A'+str(i+1):<8} | "
+                        for j in range(n):
+                            alloc = f"{X[i,j]:g}" if (i, j) in baza else "-"
+                            cell = f"{alloc} ({C[i,j]:g})"
+                            row_str += f"{cell:<10} | "
+                        
+                        row_str += f"{S[i]:<8g} | "
+                        row_str += f"{u[i]:<8g}" if not np.isnan(u[i]) else f"{'-':<8}"
+                        out_str += row_str + "\n"
+                        
+                    out_str += "-" * (len(header) - 1) + "\n"
+                    
+                    out_str += nec_str
+                    
+                    v_str_iter = f"{'v_j':<8} | "
+                    for j in range(n):
+                        v_str_iter += f"{v[j]:<10g}" if not np.isnan(v[j]) else f"{'-':<10}"
+                        v_str_iter += " | "
+                    out_str += v_str_iter + "\n"
+                    out_str += "-" * (len(header) - 1) + "\n"
+                    
+                    out_str += "\nMatricea Delta (c_ij - u_i - v_j) pentru celulele non-bază:\n"
+                    for i in range(m):
+                        d_row = "         "
+                        for j in range(n):
+                            val = Delta[i,j]
+                            d_row += f"{val:<10g}   " if not np.isnan(val) else f"{'-':<10}   "
+                        out_str += d_row + "\n"
+                    
+                    out_str += f"\nCost curent (Z): {ist['cost']}\n"
             
             text.setText(out_str)
 
@@ -156,7 +234,7 @@ class TransportUI(QWidget):
 
         # Grid Costuri + Disponibil
         for i in range(m):
-            lbl = QLabel(f"F{i+1}")
+            lbl = QLabel(f"A{i+1}")
             lbl.setAlignment(Qt.AlignmentFlag.AlignRight | Qt.AlignmentFlag.AlignVCenter)
             self.grid_layout.addWidget(lbl, i+1, 0)
             self.grid_widgets.append(lbl)
@@ -180,7 +258,7 @@ class TransportUI(QWidget):
             self.grid_widgets.append(s_entry)
 
         # Footer (Necesitate)
-        lbl_nec = QLabel("Necesitate (D)")
+        lbl_nec = QLabel("Necesitate (N)")
         lbl_nec.setStyleSheet("font-weight: bold; color: #e60000;")
         self.grid_layout.addWidget(lbl_nec, m+1, 0)
         self.grid_widgets.append(lbl_nec)
@@ -229,8 +307,13 @@ class TransportUI(QWidget):
             # Apelare Backend Matematic
             rezultat = self.solver.solve(C, S, D, cu_afisare=False)
 
-            # Lnsare UI Secundar
-            self.output_window = OutputWindow(rezultat)
+            # Lansare UI Secundar cu fereastra de log-uri
+            # Preluăm C, S, D din backend deoarece acestea au fost posibil modificate de echilibrare (linii/coloane fictive)
+            C_echilibrat = getattr(self.solver, 'C', C)
+            S_echilibrat = getattr(self.solver, 'S', S)
+            D_echilibrat = getattr(self.solver, 'D', D)
+            
+            self.output_window = OutputWindow(rezultat, C_echilibrat, S_echilibrat, D_echilibrat)
             self.output_window.show()
 
         except ValueError:
