@@ -65,7 +65,7 @@ class Transport:
                 print(d_row)
         print()
 
-    def solve(self, costuri, disponibil, necesitate, cu_afisare=False):
+    def solve(self, costuri, disponibil, necesitate, cu_afisare=True):
         """
         Rezolvă problema de transport folosind Metoda Nord-Vest 
         și optimizarea MODI (Distribuției Modificate / u-v).
@@ -192,7 +192,7 @@ class Transport:
                 self.baza.remove(celula_iese)
                 
             if cu_afisare:
-                print(f"-> Variabila X[{celula_iese[0]+1}, {celula_iese[1]+1}] iese din bază.")
+                print(f"-> Variabila X[{celula_iese[0]+1}, {celula_iese[1]+1}] iese din bază.") #type:ignore
 
         cost_final = np.sum(self.X * self.C)
 
@@ -256,8 +256,8 @@ class Transport:
             grad_linii[i] += 1
             grad_coloane[j] += 1
             
-        max_linie = max(grad_linii, key=grad_linii.get)
-        max_coloana = max(grad_coloane, key=grad_coloane.get)
+        max_linie = max(grad_linii, key=grad_linii.get)         #type:ignore
+        max_coloana = max(grad_coloane, key=grad_coloane.get)   #type:ignore
         
         # Setăm cu 0 variabila cu cel mai mare grad și o adăugăm prima în coada BFS
         if grad_linii[max_linie] >= grad_coloane[max_coloana]:
