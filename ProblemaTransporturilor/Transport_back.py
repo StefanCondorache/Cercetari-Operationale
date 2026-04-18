@@ -14,38 +14,32 @@ class Transport:
         
         m, n = self.C.shape
         
-        # Antet coloane
         header = f"{'':<8} | "
         for j in range(n):
             header += f"{'B'+str(j+1):<5} x(c) | "
         header += f"{'Disp(D)':<8} | {'u_i':<8}"
         print(header)
         print("-" * len(header))
-        
-        # Linii furnizori
+
         for i in range(m):
             row_str = f"{'A'+str(i+1):<8} | "
             for j in range(n):
-                # Dacă e în bază afișăm valoarea (chiar și 0 pentru degenerare), altfel '-'
                 alloc = f"{self.X[i,j]:g}" if (i, j) in self.baza else "-"
                 cell = f"{alloc} ({self.C[i,j]:g})"
                 row_str += f"{cell:<10} | "
             
-            # Disponibil si u_i
             row_str += f"{self.D[i]:<8g} | "
             row_str += f"{u[i]:<8g}" if u is not None and not np.isnan(u[i]) else f"{'-':<8}"
             print(row_str)
             
         print("-" * len(header))
-        
-        # Linie necesitate
+
         nec_str = f"{'Nec(N)':<8} | "
         for j in range(n):
             nec_str += f"{self.N[j]:<10g} | "
         nec_str += f"{'':<8} | {'':<8}"
         print(nec_str)
         
-        # Linie v_j
         if v is not None:
             v_str = f"{'v_j':<8} | "
             for j in range(n):
@@ -54,7 +48,6 @@ class Transport:
             print(v_str)
             print("-" * len(header))
             
-        # Matricea Delta
         if Delta is not None:
             print("\nMatricea Delta (c_ij - u_i - v_j) pentru celulele non-bază:")
             for i in range(m):
@@ -74,7 +67,7 @@ class Transport:
         self.D_initial = np.array(disponibil, dtype=np.float64)
         self.N_initial = np.array(necesitate, dtype=np.float64)
 
-        # 1. & 2. Echilibrarea problemei
+        # Echilibrarea problemei
         suma_disp = np.sum(self.D_initial)
         suma_nec = np.sum(self.N_initial)
 
@@ -100,13 +93,13 @@ class Transport:
 
         self.m, self.n = self.C.shape
 
-        # 3. Metoda Tabelului Nord-Vest (Atenție la degenerare!)
+        # Metoda Tabelului Nord-Vest (Atenție la degenerare!)
         self.X, self.baza = self.metoda_nord_vest(self.D, self.N)
 
         if cu_afisare:
             self.afisare("Soluția Inițială (Metoda Nord-Vest)", np.full(self.m, np.nan), np.full(self.n, np.nan))
 
-        # 4. Verificare degenerare
+        # Verificare degenerare
         V = self.m + self.n - 1
         NC = len(self.baza)
         tip_degenerare = "Nedegenerată"
@@ -117,23 +110,19 @@ class Transport:
         optim = False
         iteratie = 0
 
-        # 5. Iterații de optimizare (MODI)
-        while not optim and iteratie < 100:  # Limită de siguranță anti-ciclare
+        # Iterații de optimizare
+        while not optim and iteratie < 100:
             iteratie += 1
             f_k = np.sum(self.X * self.C)
 
-            # 6. & 7. Testul de optimalitate (Sistemul u_i + v_j = c_ij)
             u, v = self.calculeaza_uv(self.C, self.baza)
 
-            # 8. Calculul matricei diferențelor Delta
             Delta = np.full((self.m, self.n), np.nan)
             for i in range(self.m):
                 for j in range(self.n):
                     if (i, j) not in self.baza:
-                        # delta_ij = c_ij - (u_i + v_j)
                         Delta[i, j] = self.C[i, j] - (u[i] + v[j])
 
-            # Verificare dacă am atins optimul
             min_delta = np.nanmin(Delta)
             
             self.istoric_iteratii.append({
@@ -147,7 +136,7 @@ class Transport:
             })
             
             if cu_afisare:
-                self.afisare(f"Iterația {iteratie} (Algoritmul MODI)", u, v, Delta)
+                self.afisare(f"Iterația {iteratie}", u, v, Delta)
                 print(f"Cost curent (Z): {f_k}")
 
             if min_delta >= -1e-9:
@@ -155,19 +144,18 @@ class Transport:
                 if cu_afisare: print("\n>>> OPTIM ATINS: Toate valorile Delta sunt pozitive (>= 0). <<<")
                 break
 
-            # 9. Condiția de intrare (cel mai mic Delta negativ)
+            # Condiția de intrare (cel mai mic Delta negativ)
             intra_i, intra_j = np.unravel_index(np.nanargmin(Delta), Delta.shape)
             
             if cu_afisare:
                 print(f"-> Variabila X[{intra_i+1}, {intra_j+1}] intră în bază (Delta = {min_delta:g}).")
             
-            # Condiția de ieșire (Căutarea poligonului cu DFS Backtracking)
+            # Condiția de ieșire (Căutarea poligonului cu Backtracking)
             circuit = self.gaseste_circuit(intra_i, intra_j, self.baza)
             
             if not circuit:
                 return {"status": "error", "msg": f"Ciclare fatală la iterația {iteratie}. Baza este deconectată."}
 
-            # Determinare theta minim pe indicii impari (cei din care se scade)
             celule_scadere = [self.X[x, y] for idx, (x, y) in enumerate(circuit) if idx % 2 == 1]
             theta = min(celule_scadere)
             
@@ -176,30 +164,26 @@ class Transport:
                 print(f"-> Circuit detectat: {circuit_str}")
                 print(f"-> Valoare Theta minimă: {theta:g}")
 
-            celula_iese = None
+            celula_iese = (0,0)
             for idx, (x, y) in enumerate(circuit):
                 if idx % 2 == 0:
-                    self.X[x, y] += theta  # Adunăm theta
+                    self.X[x, y] += theta
                 else:
-                    self.X[x, y] -= theta  # Scădem theta
-                    # Iese STRICT prima celulă care devine zero pentru a nu strica V = m + n - 1
-                    if abs(self.X[x, y]) < 1e-9 and celula_iese is None:
+                    self.X[x, y] -= theta
+                    if abs(self.X[x, y]) < 1e-9:
                         celula_iese = (x, y)
 
-            # Actualizare structură bază
             self.baza.append((intra_i, intra_j))
             if celula_iese in self.baza:
                 self.baza.remove(celula_iese)
                 
             if cu_afisare:
-                print(f"-> Variabila X[{celula_iese[0]+1}, {celula_iese[1]+1}] iese din bază.") #type:ignore
+                print(f"-> Variabila X[{celula_iese[0]+1}, {celula_iese[1]+1}] iese din bază.")
 
         cost_final = np.sum(self.X * self.C)
 
         if cu_afisare:
-            print(f"\n======================================")
-            print(f" COST FINAL MINIM (f_MIN): {cost_final:g}")
-            print(f"======================================\n")
+            print(f" >> COST FINAL MINIM (f_MIN): {cost_final:g}")
 
         return {
             "status": "success",
@@ -228,10 +212,9 @@ class Transport:
             disp[i] -= cantitate
             nec[j] -= cantitate
             
-            # Gestionarea degenerării simultane
             if abs(disp[i]) < 1e-9 and abs(nec[j]) < 1e-9:
                 if i != m - 1 or j != n - 1:
-                    i += 1 # Trecem o linie mai jos, dar lăsăm coloana pentru a adăuga un 0 în bază
+                    i += 1
                 else:
                     break
             elif abs(disp[i]) < 1e-9:
@@ -248,7 +231,6 @@ class Transport:
         u = np.full(m, np.nan)
         v = np.full(n, np.nan)
         
-        # --- OPTIMIZAREA TA: Găsim linia sau coloana cu cele mai multe elemente în bază ---
         grad_linii = {i: 0 for i in range(m)}
         grad_coloane = {j: 0 for j in range(n)}
         
@@ -259,16 +241,13 @@ class Transport:
         max_linie = max(grad_linii, key=grad_linii.get)         #type:ignore
         max_coloana = max(grad_coloane, key=grad_coloane.get)   #type:ignore
         
-        # Setăm cu 0 variabila cu cel mai mare grad și o adăugăm prima în coada BFS
         if grad_linii[max_linie] >= grad_coloane[max_coloana]:
             u[max_linie] = 0
             start_node = f"r_{max_linie}"
         else:
             v[max_coloana] = 0
             start_node = f"c_{max_coloana}"
-        # ---------------------------------------------------------------------------------
-        
-        # Lista de adiacență
+
         adj = {f"r_{i}": [] for i in range(m)}
         for j in range(n):
             adj[f"c_{j}"] = []
@@ -284,7 +263,6 @@ class Transport:
             idx = int(curent.split("_")[1])
             
             for vecin, cost in adj[curent]:
-                v_e_linie = vecin.startswith("r_")
                 v_idx = int(vecin.split("_")[1])
                 
                 if e_linie and np.isnan(v[v_idx]):
@@ -298,12 +276,12 @@ class Transport:
 
     def gaseste_circuit(self, start_i, start_j, baza):
         """
-        Algoritm DFS cu Backtracking pentru a găsi poligonul Stepping-Stone.
-        Trebuie să alterneze Orizontal -> Vertical și să se întoarcă la (start_i, start_j).
+        Algoritm Backtracking pentru a găsi circuitul problemei transporturilor.
+        Alterneaza Orizontal -> Vertical și se întoarce la (start_i, start_j).
         """
         def dfs(nod_curent, traseu, mergi_orizontal):
             if len(traseu) > 3 and nod_curent == (start_i, start_j):
-                return traseu[:-1] # Returmăm traseul fără să duplicăm punctul de start
+                return traseu[:-1]
 
             r_cur, c_cur = nod_curent
             noduri_posibile = baza + [(start_i, start_j)]
@@ -321,16 +299,13 @@ class Transport:
                             if rez: return rez
             return None
 
-        # Încercăm să pornim orizontal
         circuit = dfs((start_i, start_j), [(start_i, start_j)], True)
         if not circuit:
-            # Dacă dă greș, încercăm să pornim vertical
             circuit = dfs((start_i, start_j), [(start_i, start_j)], False)
             
         return circuit
 
 if __name__ == "__main__":
-    # Testarea directă din terminal
     costuri = [
         [4, 5, 2, 3],
         [1, 2, 1, 3],
@@ -342,3 +317,4 @@ if __name__ == "__main__":
     solver = Transport()
     print("\nLANSAM REZOLVAREA CU AFISARE IN CONSOLA:\n")
     rezultat = solver.solve(costuri, disponibil, necesitate, cu_afisare=True)
+    print("\nREZULTAT FINAL:", rezultat)
