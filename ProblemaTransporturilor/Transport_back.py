@@ -32,7 +32,7 @@ class Transport:
                 row_str += f"{cell:<10} | "
             
             # Disponibil si u_i
-            row_str += f"{self.S[i]:<8g} | "
+            row_str += f"{self.D[i]:<8g} | "
             row_str += f"{u[i]:<8g}" if u is not None and not np.isnan(u[i]) else f"{'-':<8}"
             print(row_str)
             
@@ -41,7 +41,7 @@ class Transport:
         # Linie necesitate
         nec_str = f"{'Nec(N)':<8} | "
         for j in range(n):
-            nec_str += f"{self.D[j]:<10g} | "
+            nec_str += f"{self.N[j]:<10g} | "
         nec_str += f"{'':<8} | {'':<8}"
         print(nec_str)
         
@@ -71,21 +71,21 @@ class Transport:
         și optimizarea MODI (Distribuției Modificate / u-v).
         """
         self.C_initial = np.array(costuri, dtype=np.float64)
-        self.S_initial = np.array(disponibil, dtype=np.float64)
-        self.D_initial = np.array(necesitate, dtype=np.float64)
+        self.D_initial = np.array(disponibil, dtype=np.float64)
+        self.N_initial = np.array(necesitate, dtype=np.float64)
 
         # 1. & 2. Echilibrarea problemei
-        suma_disp = np.sum(self.S_initial)
-        suma_nec = np.sum(self.D_initial)
+        suma_disp = np.sum(self.D_initial)
+        suma_nec = np.sum(self.N_initial)
 
         self.C = np.copy(self.C_initial)
-        self.S = np.copy(self.S_initial)
         self.D = np.copy(self.D_initial)
+        self.N = np.copy(self.N_initial)
 
         if suma_disp > suma_nec:
             # Adăugăm un beneficiar fictiv (coloană) cu cost 0
             diferenta = suma_disp - suma_nec
-            self.D = np.append(self.D, diferenta)
+            self.N = np.append(self.N, diferenta)
             col_fictiva = np.zeros((self.C.shape[0], 1))
             self.C = np.hstack((self.C, col_fictiva))
             if cu_afisare: print(f"-> Echilibrare: S-a adăugat Beneficiar Fictiv (Nec: {diferenta})")
@@ -93,7 +93,7 @@ class Transport:
         elif suma_nec > suma_disp:
             # Adăugăm un furnizor fictiv (linie) cu cost 0
             diferenta = suma_nec - suma_disp
-            self.S = np.append(self.S, diferenta)
+            self.D = np.append(self.D, diferenta)
             lin_fictiva = np.zeros((1, self.C.shape[1]))
             self.C = np.vstack((self.C, lin_fictiva))
             if cu_afisare: print(f"-> Echilibrare: S-a adăugat Furnizor Fictiv (Disp: {diferenta})")
@@ -101,7 +101,7 @@ class Transport:
         self.m, self.n = self.C.shape
 
         # 3. Metoda Tabelului Nord-Vest (Atenție la degenerare!)
-        self.X, self.baza = self.metoda_nord_vest(self.S, self.D)
+        self.X, self.baza = self.metoda_nord_vest(self.D, self.N)
 
         if cu_afisare:
             self.afisare("Soluția Inițială (Metoda Nord-Vest)", np.full(self.m, np.nan), np.full(self.n, np.nan))
@@ -211,13 +211,13 @@ class Transport:
             "istoric": self.istoric_iteratii
         }
 
-    def metoda_nord_vest(self, S, D):
+    def metoda_nord_vest(self, D, N):
         """Metoda Nord-Vest robustă. Forcează mereu m+n-1 elemente în bază."""
-        m, n = len(S), len(D)
+        m, n = len(D), len(N)
         X = np.zeros((m, n))
         baza = []
-        disp = np.copy(S)
-        nec = np.copy(D)
+        disp = np.copy(D)
+        nec = np.copy(N)
         
         i, j = 0, 0
         while i < m and j < n:
