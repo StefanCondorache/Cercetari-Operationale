@@ -60,7 +60,7 @@ To run the terminal-based solvers or execute the hardcoded test problems:
 .venv/bin/python3 -m TeoriaJocurilor.JOC_back
 
 # To run the Transportation Problem backend tests
-.venv/bin/python3 -m ProblemaTransporturilor.problems
+.venv/bin/python3 -m ProblemaTransporturilor.Transport_back
 ```
 
 ---
