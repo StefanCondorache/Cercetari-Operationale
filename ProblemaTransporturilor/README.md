@@ -1,7 +1,3 @@
-Am înțeles. Iată conținutul pentru fișierul `README.md` al modulului `ProblemaTransporturilor`, generat direct aici, în chat:
-
-***
-
 # Problema Transporturilor - Cercetări Operaționale
 
 Acest modul face parte din suita `Cercetari-Operationale` și implementează rezolvarea **Problemei Transporturilor** folosind metode clasice de optimizare, având atât un motor matematic precis (backend), cât și o interfață grafică interactivă (frontend).
