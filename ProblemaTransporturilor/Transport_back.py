@@ -306,15 +306,50 @@ class Transport:
         return circuit
 
 if __name__ == "__main__":
-    costuri = [
-        [4, 5, 2, 3],
-        [1, 2, 1, 3],
-        [4, 4, 5, 1]
-    ]
-    disponibil = [30, 27, 43]
-    necesitate = [25, 35, 18, 22]
+    import sys
+    import os
+    from ProblemaTransporturilor.problems import probleme_test
+
+    folder_curent = os.path.dirname(os.path.abspath(__file__))
+    output_path = os.path.join(folder_curent, "output.txt")
     
-    solver = Transport()
-    print("\nLANSAM REZOLVAREA CU AFISARE IN CONSOLA:\n")
-    rezultat = solver.solve(costuri, disponibil, necesitate, cu_afisare=True)
-    print("\nREZULTAT FINAL:", rezultat)
+    print(f"Incepem rezolvarea a {len(probleme_test)} probleme...")
+    print(f"Generam rezultatele in: {output_path}")
+
+    with open(output_path, "w", encoding="utf-8") as f:
+        original_stdout = sys.stdout 
+        sys.stdout = f 
+        
+        try:
+            solver = Transport()
+            
+            print("="*70)
+            print(" RAPORT GENERAL: REZOLVAREA PROBLEMELOR DE TRANSPORT")
+            print("="*70 + "\n")
+            
+            # Iterăm prin fiecare problemă din dicționar
+            for nume_problema, date in probleme_test.items():
+                print(f"\n\n{'#'*70}")
+                print(f" SE REZOLVĂ PROBLEMA: {nume_problema.upper()}")
+                print(f"{'#'*70}\n")
+                
+                costuri = date["costuri"]
+                disponibil = date["disponibil"]
+                necesitate = date["necesitate"]
+                
+                rezultat = solver.solve(costuri, disponibil, necesitate, cu_afisare=True)
+                
+                print("\n" + "-"*40)
+                print(f" SUMAR {nume_problema.upper()}:")
+                print(f" Status:      {rezultat.get('status')}")
+                if rezultat.get("status") == "success":
+                    print(f" Iteratii:    {rezultat['iteratii']}")
+                    print(f" Cost Optim:  {rezultat['cost_final']}")
+                else:
+                    print(f" Eroare:      {rezultat.get('msg')}")
+                print("-"*40 + "\n")
+                
+        finally:
+            sys.stdout = original_stdout
+            
+    print("Execuția s-a terminat cu succes! Deschide fișierul 'output.txt' pentru a vedea rezultatele.")
