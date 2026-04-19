@@ -251,7 +251,7 @@ class TransportUI(QWidget):
 
             s_entry = QLineEdit("0")
             s_entry.setFixedWidth(65)
-            s_entry.setStyleSheet("background-color: #e6f2ff; font-weight: bold;")
+            s_entry.setStyleSheet("background-color: black; color: white; font-weight: bold;")
             s_entry.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self.grid_layout.addWidget(s_entry, i+1, n+1)
             self.supply_entries.append(s_entry)
@@ -266,7 +266,7 @@ class TransportUI(QWidget):
         for j in range(n):
             d_entry = QLineEdit("0")
             d_entry.setFixedWidth(55)
-            d_entry.setStyleSheet("background-color: #ffe6e6; font-weight: bold;")
+            d_entry.setStyleSheet("background-color: black; color: white; font-weight: bold;")
             d_entry.setAlignment(Qt.AlignmentFlag.AlignCenter)
             self.grid_layout.addWidget(d_entry, m+1, j+1)
             self.demand_entries.append(d_entry)
@@ -310,8 +310,8 @@ class TransportUI(QWidget):
             # Lansare UI Secundar cu fereastra de log-uri
             # Preluăm C, S, D din backend deoarece acestea au fost posibil modificate de echilibrare (linii/coloane fictive)
             C_echilibrat = getattr(self.solver, 'C', C)
-            S_echilibrat = getattr(self.solver, 'S', S)
-            D_echilibrat = getattr(self.solver, 'D', D)
+            S_echilibrat = getattr(self.solver, 'D', S)
+            D_echilibrat = getattr(self.solver, 'N', D)
             
             self.output_window = OutputWindow(rezultat, C_echilibrat, S_echilibrat, D_echilibrat)
             self.output_window.show()
