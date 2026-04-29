@@ -1,4 +1,5 @@
 import sys
+import math
 from PySide6.QtWidgets import (QApplication, QMainWindow, QGraphicsScene, 
                                QGraphicsView, QVBoxLayout, QHBoxLayout, 
                                QWidget, QPushButton, QLabel, QTextEdit)
@@ -10,13 +11,13 @@ from Graph_back import Graph
 class FlowNetworkView(QMainWindow):
     def __init__(self, problema):
         super().__init__()
-        self.setWindowTitle("Ford-Fulkerson - Vizualizare")
-        self.resize(1200, 800)
+        self.setWindowTitle("Ford-Fulkerson - Vizualizare cu Etichete")
+        self.resize(1300, 850)
 
         self.problema = problema
         self.backend = Graph()
         
-        # Setul de muchii originale pentru a detecta când algoritmul folosește arce inverse
+        # Setul de muchii originale pentru detectarea sensului
         self.muchii_originale = set(date['node'] for date in self.problema['date_intrare'].values())
         
         # Rulăm algoritmul o singură dată pentru a obține toate iterațiile
@@ -26,8 +27,9 @@ class FlowNetworkView(QMainWindow):
         self.flux_curent_afisat = 0
         self.pozitii_noduri = {}
         
-        # Istoricul fluxului reține o listă de adăugări/scăderi
+        # Istoricul fluxului și etichetele curente
         self.istoric_fluxuri = self._init_istoric()
+        self.etichete_curente = {}
 
         self._init_ui()
         self._calculeaza_layout_noduri()
@@ -45,13 +47,11 @@ class FlowNetworkView(QMainWindow):
         widget_central = QWidget()
         layout_principal = QHBoxLayout(widget_central)
 
-        # 1. Panoul Grafic
         self.scena = QGraphicsScene()
         self.view = QGraphicsView(self.scena)
         self.view.setRenderHint(QPainter.Antialiasing)
         layout_principal.addWidget(self.view, stretch=3)
 
-        # 2. Panoul de Control
         panou_control = QVBoxLayout()
         
         self.lbl_status = QLabel("Stare: Pregătit.\nApasă 'Următorul Pas' pentru a începe.")
@@ -74,7 +74,7 @@ class FlowNetworkView(QMainWindow):
         self.setCentralWidget(widget_central)
 
     def _calculeaza_layout_noduri(self):
-        """Așază nodurile într-o grilă echilibrată pentru a asigura muchii de lungimi similare."""
+        """Așază nodurile într-o grilă echilibrată."""
         sursa = self.problema['sursa']
         
         adancimi = {sursa: 0}
@@ -89,33 +89,66 @@ class FlowNetworkView(QMainWindow):
 
         layere = {}
         for nod, depth in adancimi.items():
-            if depth not in layere:
-                layere[depth] = []
+            if depth not in layere: layere[depth] = []
             layere[depth].append(nod)
 
-        latime = 800
-        inaltime = 700
+        latime = 900
+        inaltime = 750
         nr_layere = len(layere)
         
         distanta_x = latime / max(1, nr_layere - 1)
-        distanta_y_fixa = 150  # Spațiere verticală constantă pentru a uniformiza unghiurile muchiilor
+        distanta_y_fixa = 150
         
         for adancime, noduri_layer in layere.items():
             x = 100 + distanta_x * adancime
-            
-            nr_noduri = len(noduri_layer)
-            # Centrăm stratul vertical
-            start_y = (inaltime - (nr_noduri - 1) * distanta_y_fixa) / 2
+            start_y = (inaltime - (len(noduri_layer) - 1) * distanta_y_fixa) / 2
             
             for i, nod in enumerate(noduri_layer):
                 y = start_y + i * distanta_y_fixa
                 self.pozitii_noduri[nod] = QPointF(x, y)
+
+    def _genereaza_etichete(self):
+        """Generează etichetele (+xi) pe baza rețelei reziduale curente, înainte de a pompa fluxul."""
+        sursa = self.problema['sursa']
+        destinatie = self.problema['destinatie']
+        
+        # 1. Construim graful rezidual
+        graf_rezidual = {u: {} for u in self.pozitii_noduri}
+        for date in self.problema['date_intrare'].values():
+            u, v = date['node']
+            cap = date['value']
+            flux_curent = sum(self.istoric_fluxuri[u][v])
+            graf_rezidual[u][v] = cap - flux_curent
+            graf_rezidual[v][u] = flux_curent
+            
+        # 2. Parcurgere BFS pentru etichetare
+        etichete = {sursa: "(+)"}
+        coada = [sursa]
+        gasit = False
+        
+        while coada and not gasit:
+            u = coada.pop(0)
+            for v, capacitate in graf_rezidual[u].items():
+                if v not in etichete and capacitate > 0:
+                    if (u, v) in self.muchii_originale:
+                        etichete[v] = f"(+{u})"
+                    else:
+                        etichete[v] = f"(-{u})"
+                    coada.append(v)
+                    if v == destinatie:
+                        gasit = True
+                        break
+        return etichete
 
     def pas_urmator(self):
         if self.pas_curent < len(self.iteratii) - 1:
             self.pas_curent += 1
             it = self.iteratii[self.pas_curent]
             
+            # 1. Calculăm etichetele PENTRU starea curentă (cum a fost găsit drumul)
+            self.etichete_curente = self._genereaza_etichete()
+            
+            # 2. Aplicăm fluxul
             drum_evidentiat = []
             if it['drum_xt_xs'] is not None:
                 drum = list(reversed(it['drum_xt_xs'])) 
@@ -146,11 +179,14 @@ class FlowNetworkView(QMainWindow):
             self._deseneaza_graf(drum_evidentiat)
         else:
             self.lbl_status.setText(f"Optimizare completă.\nFlux Maxim: {self.flux_maxim_final}")
+            self.etichete_curente = {}
+            self._deseneaza_graf()
 
     def reseteaza(self):
         self.pas_curent = -1
         self.flux_curent_afisat = 0
         self.istoric_fluxuri = self._init_istoric()
+        self.etichete_curente = {}
         self.lbl_status.setText("Stare: Pregătit.\nApasă 'Următorul Pas' pentru a începe.")
         self.consola.clear()
         self._deseneaza_graf()
@@ -162,7 +198,7 @@ class FlowNetworkView(QMainWindow):
 
         raza = 20
 
-        # Desenăm muchiile
+        # 1. Desenăm muchiile și textul (liniat pe muchie)
         for date in self.problema['date_intrare'].values():
             u, v = date['node']
             capacitate = date['value']
@@ -177,7 +213,6 @@ class FlowNetworkView(QMainWindow):
             pen = QPen(culoare, grosime)
             self.scena.addLine(p1.x(), p1.y(), p2.x(), p2.y(), pen)
 
-            # Construirea textului în format: Capacitate = Suma Pașilor
             if not istoric:
                 text_flux = f"{capacitate} = 0"
             else:
@@ -188,23 +223,36 @@ class FlowNetworkView(QMainWindow):
                     else:
                         semn = "+" if val >= 0 else "-"
                         elemente.append(f"{semn} {abs(val)}")
-                        
                 text_flux = f"{capacitate} = {' '.join(elemente)}"
             
-            # Adăugarea indicatorilor de saturare
             if flux_total == capacitate:
                 text_flux += " ●"
             else:
                 text_flux += " +"
 
+            # Calculăm unghiul pentru a roti textul în sensul conexiunii
+            dx = p2.x() - p1.x()
+            dy = p2.y() - p1.y()
+            unghi_rad = math.atan2(dy, dx)
+            unghi_deg = math.degrees(unghi_rad)
+
+            text_item = self.scena.addText(text_flux, QFont("Arial", 10, QFont.Bold))
+            text_item.setDefaultTextColor(QColor(0, 0, 200))
+            text_rect = text_item.boundingRect()
+
+            text_item.setTransformOriginPoint(text_rect.width() / 2, text_rect.height())
             mid_x = (p1.x() + p2.x()) / 2
             mid_y = (p1.y() + p2.y()) / 2
-            
-            text_item = self.scena.addText(text_flux, QFont("Arial", 10, QFont.Bold))
-            text_item.setDefaultTextColor(QColor(0, 0, 255))
-            text_item.setPos(mid_x - 20, mid_y - 20)
 
-        # Desenăm nodurile
+            # Menținem textul lizibil, deasupra liniei
+            if dx < 0:
+                text_item.setRotation(unghi_deg + 180)
+                text_item.setPos(mid_x - text_rect.width() / 2, mid_y + 2)
+            else:
+                text_item.setRotation(unghi_deg)
+                text_item.setPos(mid_x - text_rect.width() / 2, mid_y - text_rect.height() - 2)
+
+        # 2. Desenăm nodurile și etichetele
         for nod, pos in self.pozitii_noduri.items():
             rect = QRectF(pos.x() - raza, pos.y() - raza, raza * 2, raza * 2)
             
@@ -214,9 +262,17 @@ class FlowNetworkView(QMainWindow):
             
             self.scena.addEllipse(rect, QPen(Qt.black, 2), QBrush(culoare_nod))
             
-            text = self.scena.addText(nod, QFont("Arial", 10, QFont.Bold))
-            text_rect = text.boundingRect()
-            text.setPos(pos.x() - text_rect.width() / 2, pos.y() - text_rect.height() / 2)
+            text_nod = self.scena.addText(nod, QFont("Arial", 10, QFont.Bold))
+            text_rect = text_nod.boundingRect()
+            text_nod.setPos(pos.x() - text_rect.width() / 2, pos.y() - text_rect.height() / 2)
+            
+            # Afișarea etichetei (+xi)
+            if nod in self.etichete_curente:
+                eticheta_lbl = self.scena.addText(self.etichete_curente[nod], QFont("Arial", 11, QFont.Bold))
+                eticheta_lbl.setDefaultTextColor(QColor(200, 0, 0)) # Roșu pentru a ieși în evidență
+                # Plasăm eticheta deasupra nodului
+                eticheta_rect = eticheta_lbl.boundingRect()
+                eticheta_lbl.setPos(pos.x() - eticheta_rect.width() / 2, pos.y() - raza - 25)
 
 if __name__ == "__main__":
     problema_test = {
