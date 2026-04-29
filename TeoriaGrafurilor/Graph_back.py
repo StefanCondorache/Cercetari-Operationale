@@ -5,7 +5,7 @@ class Graph:
     def solve(self, **problema):
         self.graf = {}
         set_noduri = set()
-
+        
         sursa = problema['sursa']
         destinatie = problema['destinatie']
         
@@ -72,7 +72,6 @@ class Graph:
                 nod_curent = nod_anterior
             
             drum_invers.append(sursa)
-
             flux_maxim += flux_curent
             
             iteratii.append({
@@ -89,7 +88,28 @@ class Graph:
                 self.graf[nod_curent][nod_anterior] += flux_curent
                 nod_curent = nod_anterior
 
-        return flux_maxim, iteratii
+        vizitat_final = {nod: False for nod in self.noduri}
+        coada_finala = [sursa]
+        vizitat_final[sursa] = True
+
+        while coada_finala:
+            u = coada_finala.pop(0)
+            for v, capacitate in self.graf[u].items():
+                if not vizitat_final[v] and capacitate > 0:
+                    vizitat_final[v] = True
+                    coada_finala.append(v)
+
+        muchii_taiate = []
+        for u in self.noduri:
+            for v, capacitate_initiala in self.graf_original[u].items():
+                if vizitat_final[u] and not vizitat_final[v] and capacitate_initiala > 0:
+                    muchii_taiate.append({
+                        "de_la": u,
+                        "la": v,
+                        "capacitate": capacitate_initiala
+                    })
+
+        return flux_maxim, iteratii, muchii_taiate
 
     def afisare(self):
         rezultat = []
@@ -106,16 +126,30 @@ class Graph:
 if __name__ == "__main__":
     problema = {
         'date_intrare': {
-            'conexiune1': {'node': ('A', 'B'), 'value': 10},
-            'conexiune2': {'node': ('B', 'C'), 'value': 5},
-            'conexiune3': {'node': ('A', 'C'), 'value': 15},
+            'c1': {'node': ('x1', 'x2'), 'value': 20},
+            'c2': {'node': ('x1', 'x3'), 'value': 30},
+            'c3': {'node': ('x1', 'x4'), 'value': 40},
+            'c4': {'node': ('x2', 'x7'), 'value': 21},
+            'c5': {'node': ('x2', 'x5'), 'value': 22},
+            'c6': {'node': ('x3', 'x5'), 'value': 11},
+            'c7': {'node': ('x3', 'x8'), 'value': 23},
+            'c8': {'node': ('x3', 'x6'), 'value': 8},
+            'c9': {'node': ('x4', 'x6'), 'value': 24},
+            'c10': {'node': ('x4', 'x9'), 'value': 25},
+            'c11': {'node': ('x5', 'x7'), 'value': 10},
+            'c12': {'node': ('x5', 'x8'), 'value': 9},
+            'c13': {'node': ('x6', 'x8'), 'value': 12},
+            'c14': {'node': ('x6', 'x9'), 'value': 8},
+            'c15': {'node': ('x7', 'x10'), 'value': 31},
+            'c16': {'node': ('x8', 'x10'), 'value': 26},
+            'c17': {'node': ('x9', 'x10'), 'value': 42}
         },
-        'sursa': 'A',
-        'destinatie': 'C'
+        'sursa': 'x1',
+        'destinatie': 'x10'
     }
     
     graf = Graph()
-    flux_maxim, iteratii = graf.solve(**problema)
+    flux_maxim, iteratii, muchii_taiate = graf.solve(**problema)
     
     print("=== ISTORIC ITERAȚII ===")
     for i, it in enumerate(iteratii):
@@ -128,7 +162,12 @@ if __name__ == "__main__":
             print(f"  Minim valori:      {it['minim_valori']}")
             print(f"  Flux maxim curent: {it['flux_maxim_moment']}")
             
-    print(f"\nFLUX MAXIM FINAL: {flux_maxim}\n")
+    print(f"\n=== REZULTATE FINALE ===")
+    print(f"FLUX MAXIM: {flux_maxim}")
     
-    print("=== STAREA FINALĂ A GRAFULUI (Rețeaua Reziduală) ===")
-    print(graf.afisare())
+    print("\nMUCHII TĂIATE (Tăietura minimă):")
+    if muchii_taiate:
+        for muchie in muchii_taiate:
+            print(f"  {muchie['de_la']} -> {muchie['la']} (Capacitate: {muchie['capacitate']})")
+    else:
+        print("  Nicio muchie tăiată găsită.")
