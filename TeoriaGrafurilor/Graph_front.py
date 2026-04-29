@@ -11,7 +11,7 @@ from Graph_back import Graph
 class FlowNetworkView(QMainWindow):
     def __init__(self, problema):
         super().__init__()
-        self.setWindowTitle("Ford-Fulkerson - Vizualizare cu Etichete Corecte")
+        self.setWindowTitle("Ford-Fulkerson")
         self.resize(1300, 850)
 
         self.problema = problema
@@ -62,6 +62,11 @@ class FlowNetworkView(QMainWindow):
         self.btn_urmatorul.clicked.connect(self.pas_urmator)
         panou_control.addWidget(self.btn_urmatorul)
 
+        # Adăugăm butonul de Pas Înapoi
+        self.btn_inapoi = QPushButton("Pas Înapoi")
+        self.btn_inapoi.clicked.connect(self.pas_inapoi)
+        panou_control.addWidget(self.btn_inapoi)
+
         self.btn_reset = QPushButton("Resetează")
         self.btn_reset.clicked.connect(self.reseteaza)
         panou_control.addWidget(self.btn_reset)
@@ -106,36 +111,44 @@ class FlowNetworkView(QMainWindow):
                 y = start_y + i * distanta_y_fixa
                 self.pozitii_noduri[nod] = QPointF(x, y)
 
+    def _reconstruieste_stare_pana_la(self, pas_maxim):
+        """Regenerează istoricul fluxurilor de la zero până la iterația dorită."""
+        self.istoric_fluxuri = self._init_istoric()
+        for i in range(pas_maxim + 1):
+            it = self.iteratii[i]
+            if it['drum_xt_xs'] is not None:
+                drum = list(reversed(it['drum_xt_xs']))
+                flux_adaugat = it['minim_valori']
+                for j in range(len(drum) - 1):
+                    u = drum[j]
+                    v = drum[j+1]
+                    if (u, v) in self.muchii_originale:
+                        self.istoric_fluxuri[u][v].append(flux_adaugat)
+                    elif (v, u) in self.muchii_originale:
+                        self.istoric_fluxuri[v][u].append(-flux_adaugat)
+
     def _genereaza_etichete(self):
-        """Generează etichetele strict pe baza rețelei reziduale CURENTE."""
         sursa = self.problema['sursa']
         destinatie = self.problema['destinatie']
         
-        # 1. Construim graful rezidual cu capacitățile rămase DUPĂ fluxul actual
         graf_rezidual = {u: {} for u in self.pozitii_noduri}
         for date in self.problema['date_intrare'].values():
             u, v = date['node']
             cap = date['value']
             flux_curent = sum(self.istoric_fluxuri[u][v])
             
-            # Capacitatea reziduală directă (dacă e saturată devine 0)
             graf_rezidual[u][v] = cap - flux_curent
-            # Capacitatea reziduală inversă
             graf_rezidual[v][u] = flux_curent
             
-        # 2. Parcurgere BFS pentru etichetare
         etichete = {sursa: "(+)"}
         coada = [sursa]
         gasit = False
         
         while coada and not gasit:
             u = coada.pop(0)
-            
-            # Sortăm vecinii pentru un parcurs predictibil uman (ex: x2 înaintea lui x3)
             vecini = sorted(graf_rezidual[u].items(), key=lambda item: int(item[0].replace('x', '')) if item[0].replace('x', '').isdigit() else item[0])
             
             for v, capacitate in vecini:
-                # Intră AICI doar dacă muchia mai are capacitate strict pozitivă!
                 if v not in etichete and capacitate > 0:
                     if (u, v) in self.muchii_originale:
                         etichete[v] = f"(+{u})"
@@ -152,7 +165,6 @@ class FlowNetworkView(QMainWindow):
             self.pas_curent += 1
             it = self.iteratii[self.pas_curent]
             
-            # 1. Aplicăm fluxul mai întâi
             drum_evidentiat = []
             if it['drum_xt_xs'] is not None:
                 drum = list(reversed(it['drum_xt_xs'])) 
@@ -174,8 +186,6 @@ class FlowNetworkView(QMainWindow):
                 mesaj = "Nu s-au mai găsit drumuri. Algoritm terminat."
 
             self.flux_curent_afisat = it['flux_maxim_moment']
-            
-            # 2. ACUM calculăm noile etichete bazate pe noile capacități saturate
             self.etichete_curente = self._genereaza_etichete()
             
             self.lbl_status.setText(f"Iterația {self.pas_curent + 1}\nFlux Maxim Curent: {self.flux_curent_afisat}")
@@ -188,6 +198,35 @@ class FlowNetworkView(QMainWindow):
             self.lbl_status.setText(f"Optimizare completă.\nFlux Maxim: {self.flux_maxim_final}")
             self.etichete_curente = {}
             self._deseneaza_graf()
+
+    def pas_inapoi(self):
+        if self.pas_curent >= 0:
+            self.pas_curent -= 1
+            
+            # Reconstruim starea matematică la noul pas curent
+            self._reconstruieste_stare_pana_la(self.pas_curent)
+            self.etichete_curente = self._genereaza_etichete()
+            
+            if self.pas_curent >= 0:
+                # Setăm UI-ul pentru iterația la care am aterizat
+                it = self.iteratii[self.pas_curent]
+                self.flux_curent_afisat = it['flux_maxim_moment']
+                self.lbl_status.setText(f"Iterația {self.pas_curent + 1}\nFlux Maxim Curent: {self.flux_curent_afisat}")
+                self.consola.append(f"\n<<< Pas Înapoi (la Iterația {self.pas_curent + 1}) <<<")
+                
+                drum_evidentiat = []
+                if it['drum_xt_xs'] is not None:
+                    drum = list(reversed(it['drum_xt_xs']))
+                    for i in range(len(drum) - 1):
+                        drum_evidentiat.append((drum[i], drum[i+1]))
+                
+                self._deseneaza_graf(drum_evidentiat)
+            else:
+                # Am revenit la starea 0 (înainte de orice iterație)
+                self.flux_curent_afisat = 0
+                self.lbl_status.setText("Stare: Pregătit.\nApasă 'Următorul Pas' pentru a începe.")
+                self.consola.append("\n<<< Pas Înapoi (Starea Inițială) <<<")
+                self._deseneaza_graf()
 
     def reseteaza(self):
         self.pas_curent = -1
@@ -205,7 +244,7 @@ class FlowNetworkView(QMainWindow):
 
         raza = 20
 
-        # Desenăm muchiile și textul (liniat pe muchie)
+        # 1. Desenăm muchiile și textul
         for date in self.problema['date_intrare'].values():
             u, v = date['node']
             capacitate = date['value']
@@ -257,7 +296,7 @@ class FlowNetworkView(QMainWindow):
                 text_item.setRotation(unghi_deg)
                 text_item.setPos(mid_x - text_rect.width() / 2, mid_y - text_rect.height() - 2)
 
-        # Desenăm nodurile și etichetele
+        # 2. Desenăm nodurile și etichetele
         for nod, pos in self.pozitii_noduri.items():
             rect = QRectF(pos.x() - raza, pos.y() - raza, raza * 2, raza * 2)
             
@@ -271,7 +310,6 @@ class FlowNetworkView(QMainWindow):
             text_rect = text_nod.boundingRect()
             text_nod.setPos(pos.x() - text_rect.width() / 2, pos.y() - text_rect.height() / 2)
             
-            # Afișarea etichetei curente deasupra nodului
             if nod in self.etichete_curente:
                 eticheta_lbl = self.scena.addText(self.etichete_curente[nod], QFont("Arial", 11, QFont.Bold))
                 eticheta_lbl.setDefaultTextColor(QColor(200, 0, 0))
