@@ -11,7 +11,7 @@ class FlowNetworkView(QMainWindow):
     def __init__(self, problema):
         super().__init__()
         self.setWindowTitle("Ford-Fulkerson - Vizualizare")
-        self.resize(1100, 750)
+        self.resize(1200, 800)
 
         self.problema = problema
         self.backend = Graph()
@@ -26,7 +26,7 @@ class FlowNetworkView(QMainWindow):
         self.flux_curent_afisat = 0
         self.pozitii_noduri = {}
         
-        # Istoricul fluxului reține o listă de adăugări/scăderi pe fiecare muchie: {u: {v: [20, 1]}}
+        # Istoricul fluxului reține o listă de adăugări/scăderi
         self.istoric_fluxuri = self._init_istoric()
 
         self._init_ui()
@@ -34,7 +34,6 @@ class FlowNetworkView(QMainWindow):
         self._deseneaza_graf()
 
     def _init_istoric(self):
-        """Inițializează liste goale pentru fiecare muchie originală."""
         istoric = {}
         for date in self.problema['date_intrare'].values():
             u, v = date['node']
@@ -75,7 +74,7 @@ class FlowNetworkView(QMainWindow):
         self.setCentralWidget(widget_central)
 
     def _calculeaza_layout_noduri(self):
-        """Așază nodurile în layere bazat pe distanța de la sursă."""
+        """Așază nodurile într-o grilă echilibrată pentru a asigura muchii de lungimi similare."""
         sursa = self.problema['sursa']
         
         adancimi = {sursa: 0}
@@ -94,15 +93,22 @@ class FlowNetworkView(QMainWindow):
                 layere[depth] = []
             layere[depth].append(nod)
 
-        latime = 750
-        inaltime = 650
+        latime = 800
+        inaltime = 700
         nr_layere = len(layere)
         
+        distanta_x = latime / max(1, nr_layere - 1)
+        distanta_y_fixa = 150  # Spațiere verticală constantă pentru a uniformiza unghiurile muchiilor
+        
         for adancime, noduri_layer in layere.items():
-            x = 50 + (latime / max(1, nr_layere - 1)) * adancime
-            spatiere_y = inaltime / (len(noduri_layer) + 1)
+            x = 100 + distanta_x * adancime
+            
+            nr_noduri = len(noduri_layer)
+            # Centrăm stratul vertical
+            start_y = (inaltime - (nr_noduri - 1) * distanta_y_fixa) / 2
+            
             for i, nod in enumerate(noduri_layer):
-                y = spatiere_y * (i + 1)
+                y = start_y + i * distanta_y_fixa
                 self.pozitii_noduri[nod] = QPointF(x, y)
 
     def pas_urmator(self):
@@ -115,7 +121,6 @@ class FlowNetworkView(QMainWindow):
                 drum = list(reversed(it['drum_xt_xs'])) 
                 flux_adaugat = it['minim_valori']
                 
-                # Adăugăm elementele în istoricul de formare a sumei text
                 for i in range(len(drum) - 1):
                     u = drum[i]
                     v = drum[i+1]
@@ -123,7 +128,6 @@ class FlowNetworkView(QMainWindow):
                     if (u, v) in self.muchii_originale:
                         self.istoric_fluxuri[u][v].append(flux_adaugat)
                     elif (v, u) in self.muchii_originale:
-                        # Dacă am folosit muchia inversă, o scădem din text (ex: - 1)
                         self.istoric_fluxuri[v][u].append(-flux_adaugat)
                         
                     drum_evidentiat.append((u, v))
@@ -158,7 +162,7 @@ class FlowNetworkView(QMainWindow):
 
         raza = 20
 
-        # Desenăm muchiile și textul sumarizat
+        # Desenăm muchiile
         for date in self.problema['date_intrare'].values():
             u, v = date['node']
             capacitate = date['value']
@@ -168,15 +172,14 @@ class FlowNetworkView(QMainWindow):
             p1 = self.pozitii_noduri[u]
             p2 = self.pozitii_noduri[v]
 
-            # Linia grafică
             culoare = QColor(255, 0, 0) if (u, v) in muchii_evidentiate or (v, u) in muchii_evidentiate else QColor(100, 100, 100)
             grosime = 3 if (u, v) in muchii_evidentiate else 2
             pen = QPen(culoare, grosime)
             self.scena.addLine(p1.x(), p1.y(), p2.x(), p2.y(), pen)
 
-            # --- Construirea string-ului istoric ---
+            # Construirea textului în format: Capacitate = Suma Pașilor
             if not istoric:
-                text_flux = "0"
+                text_flux = f"{capacitate} = 0"
             else:
                 elemente = []
                 for val in istoric:
@@ -186,21 +189,20 @@ class FlowNetworkView(QMainWindow):
                         semn = "+" if val >= 0 else "-"
                         elemente.append(f"{semn} {abs(val)}")
                         
-                text_flux = f"{flux_total} = {' '.join(elemente)}"
+                text_flux = f"{capacitate} = {' '.join(elemente)}"
             
-            # Adăugăm sufixul de validare (saturat/nesaturat)
+            # Adăugarea indicatorilor de saturare
             if flux_total == capacitate:
                 text_flux += " ●"
             else:
                 text_flux += " +"
-            # ----------------------------------------
 
             mid_x = (p1.x() + p2.x()) / 2
             mid_y = (p1.y() + p2.y()) / 2
             
             text_item = self.scena.addText(text_flux, QFont("Arial", 10, QFont.Bold))
             text_item.setDefaultTextColor(QColor(0, 0, 255))
-            text_item.setPos(mid_x - 15, mid_y - 20)
+            text_item.setPos(mid_x - 20, mid_y - 20)
 
         # Desenăm nodurile
         for nod, pos in self.pozitii_noduri.items():
@@ -215,7 +217,6 @@ class FlowNetworkView(QMainWindow):
             text = self.scena.addText(nod, QFont("Arial", 10, QFont.Bold))
             text_rect = text.boundingRect()
             text.setPos(pos.x() - text_rect.width() / 2, pos.y() - text_rect.height() / 2)
-
 
 if __name__ == "__main__":
     problema_test = {
