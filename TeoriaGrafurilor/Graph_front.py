@@ -3,7 +3,7 @@ import math
 from PySide6.QtWidgets import (QApplication, QMainWindow, QGraphicsScene, 
                                QGraphicsView, QVBoxLayout, QHBoxLayout, 
                                QWidget, QPushButton, QLabel, QTextEdit)
-from PySide6.QtGui import QPen, QBrush, QColor, QFont, QPainter
+from PySide6.QtGui import QPen, QBrush, QColor, QFont, QPainter, QPolygonF
 from PySide6.QtCore import Qt, QPointF, QRectF
 
 from Graph_back import Graph
@@ -190,9 +190,7 @@ class FlowNetworkView(QMainWindow):
                 self._deseneaza_graf(muchii_evidentiate=drum_evidentiat)
                 
             else:
-                # Am ajuns la iterația finală în care nu se mai găsește drum
-                self.etichete_curente = {} # Curățăm etichetele
-                
+                self.etichete_curente = {}
                 set_muchii_taiate = set((m['de_la'], m['la']) for m in self.muchii_taiate)
                 
                 mesaj = f"Nu s-au mai găsit drumuri.\n\n=== REZULTAT FINAL ===\n"
@@ -205,7 +203,6 @@ class FlowNetworkView(QMainWindow):
                 self.consola.append(f"--- FINAL ---")
                 self.consola.append(mesaj)
                 
-                # Desenăm graful evidențiind tăietura
                 self._deseneaza_graf(muchii_taiate=set_muchii_taiate)
 
     def pas_inapoi(self):
@@ -250,6 +247,7 @@ class FlowNetworkView(QMainWindow):
 
         raza = 20
 
+        # Desenăm muchiile, săgețile și textul
         for date in self.problema['date_intrare'].values():
             u, v = date['node']
             capacitate = date['value']
@@ -259,9 +257,9 @@ class FlowNetworkView(QMainWindow):
             p1 = self.pozitii_noduri[u]
             p2 = self.pozitii_noduri[v]
 
-            # Setare culori: Portocaliu punctat pt Tăietură, Roșu pt Drum Curent, Gri pt Normal
+            # Setare culori
             if (u, v) in muchii_taiate:
-                culoare = QColor(255, 140, 0) # Portocaliu
+                culoare = QColor(255, 140, 0)
                 grosime = 4
                 pen = QPen(culoare, grosime, Qt.DashLine)
             elif (u, v) in muchii_evidentiate or (v, u) in muchii_evidentiate:
@@ -273,8 +271,31 @@ class FlowNetworkView(QMainWindow):
                 grosime = 2
                 pen = QPen(culoare, grosime)
                 
+            # 1. Desenăm linia
             self.scena.addLine(p1.x(), p1.y(), p2.x(), p2.y(), pen)
 
+            # 2. Desenăm săgeata la destinație (calculând intersecția cu cercul nodului)
+            dx = p2.x() - p1.x()
+            dy = p2.y() - p1.y()
+            unghi_rad = math.atan2(dy, dx)
+            
+            contact_x = p2.x() - raza * math.cos(unghi_rad)
+            contact_y = p2.y() - raza * math.sin(unghi_rad)
+            
+            dim_sageata = 12
+            p_sag1 = QPointF(contact_x - dim_sageata * math.cos(unghi_rad - math.pi / 6),
+                             contact_y - dim_sageata * math.sin(unghi_rad - math.pi / 6))
+            p_sag2 = QPointF(contact_x - dim_sageata * math.cos(unghi_rad + math.pi / 6),
+                             contact_y - dim_sageata * math.sin(unghi_rad + math.pi / 6))
+            
+            sageata = QPolygonF([QPointF(contact_x, contact_y), p_sag1, p_sag2])
+            
+            # Umplem săgeata cu aceeași culoare ca muchia
+            brush = QBrush(culoare)
+            if (u, v) in muchii_taiate: brush = QBrush(Qt.NoBrush) # Fără umplere pentru tăieturi
+            self.scena.addPolygon(sageata, pen, brush)
+
+            # 3. Adăugăm textul
             if not istoric:
                 text_flux = f"{capacitate} = 0"
             else:
@@ -292,11 +313,7 @@ class FlowNetworkView(QMainWindow):
             else:
                 text_flux += " +"
 
-            dx = p2.x() - p1.x()
-            dy = p2.y() - p1.y()
-            unghi_rad = math.atan2(dy, dx)
             unghi_deg = math.degrees(unghi_rad)
-
             text_item = self.scena.addText(text_flux, QFont("Arial", 10, QFont.Bold))
             text_item.setDefaultTextColor(QColor(0, 0, 200))
             text_rect = text_item.boundingRect()
@@ -312,6 +329,7 @@ class FlowNetworkView(QMainWindow):
                 text_item.setRotation(unghi_deg)
                 text_item.setPos(mid_x - text_rect.width() / 2, mid_y - text_rect.height() - 2)
 
+        # Desenăm nodurile și etichetele
         for nod, pos in self.pozitii_noduri.items():
             rect = QRectF(pos.x() - raza, pos.y() - raza, raza * 2, raza * 2)
             
