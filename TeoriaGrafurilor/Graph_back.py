@@ -3,19 +3,11 @@ import copy
 class Graph:   
 
     def solve(self, **problema):
-        """Execută salvarea/resetarea și algoritmul Ford-Fulkerson.
-            problema : {
-                'date_intrare': {
-                    'conexiune1': {'node': ('A', 'B'), 'value': 10},
-                    'conexiune2': {'node': ('B', 'C'), 'value': 5},
-                    ...
-                },
-                'sursa': 'A',
-                'destinatie': 'C'
-            }
-        """
         self.graf = {}
         set_noduri = set()
+
+        sursa = problema['sursa']
+        destinatie = problema['destinatie']
         
         for id_conexiune, date in problema['date_intrare'].items():
             u, v = date['node']
@@ -38,13 +30,13 @@ class Graph:
         self.graf_original = copy.deepcopy(self.graf)
         
         flux_maxim = 0
-        drumuri_gasite = []
+        iteratii = []
 
         while True:
             parinte = {}
             vizitat = {nod: False for nod in self.noduri}
-            coada = [problema['sursa']]
-            vizitat[problema['sursa']] = True
+            coada = [sursa]
+            vizitat[sursa] = True
             gasit_drum = False
 
             while coada:
@@ -54,45 +46,57 @@ class Graph:
                         coada.append(v)
                         vizitat[v] = True
                         parinte[v] = u
-                        if v == problema['destinatie']:
+                        if v == destinatie:
                             gasit_drum = True
                             break
                 if gasit_drum:
                     break
 
             if not gasit_drum:
+                iteratii.append({
+                    "drum_xt_xs": None,
+                    "minim_valori": 0,
+                    "flux_maxim_moment": flux_maxim,
+                    "test_optimalitate": f"Optim: Nu s-a mai putut găsi un drum de la {sursa} la {destinatie}."
+                })
                 break
 
             flux_curent = float("Inf")
-            nod_curent = problema['destinatie']
-            drum = []
+            nod_curent = destinatie
+            drum_invers = []
             
-            while nod_curent != problema['sursa']:
-                drum.insert(0, nod_curent)
+            while nod_curent != sursa:
+                drum_invers.append(nod_curent)
                 nod_anterior = parinte[nod_curent]
                 flux_curent = min(flux_curent, self.graf[nod_anterior][nod_curent])
                 nod_curent = nod_anterior
             
-            drum.insert(0, problema['sursa'])
-            drumuri_gasite.append({"drum": drum, "flux_adaugat": flux_curent})
+            drum_invers.append(sursa)
+
             flux_maxim += flux_curent
             
-            nod_curent = problema['destinatie']
-            while nod_curent != problema['sursa']:
+            iteratii.append({
+                "drum_xt_xs": drum_invers,
+                "minim_valori": flux_curent,
+                "flux_maxim_moment": flux_maxim,
+                "test_optimalitate": f"Ne-optim: S-a găsit un drum de la {sursa} la {destinatie}."
+            })
+            
+            nod_curent = destinatie
+            while nod_curent != sursa:
                 nod_anterior = parinte[nod_curent]
                 self.graf[nod_anterior][nod_curent] -= flux_curent
                 self.graf[nod_curent][nod_anterior] += flux_curent
                 nod_curent = nod_anterior
 
-        return flux_maxim, drumuri_gasite
+        return flux_maxim, iteratii
 
     def afisare(self):
-        """Afișează muchiile cu capacitate nenulă din graful curent."""
         rezultat = []
         for u in self.graf:
             for v, capacitate in self.graf[u].items():
                 if capacitate > 0:
-                    rezultat.append(f"Muchia {u} -> {v} (Capacitate: {capacitate})")
+                    rezultat.append(f"Muchia {u} -> {v} (Capacitate reziduală: {capacitate})")
         
         if not rezultat:
             return "Graful este gol."
@@ -111,12 +115,20 @@ if __name__ == "__main__":
     }
     
     graf = Graph()
-    flux_maxim, drumuri_gasite = graf.solve(**problema)
+    flux_maxim, iteratii = graf.solve(**problema)
     
-    print(f"Flux maxim: {flux_maxim}")
-    print("Drumuri găsite:")
-    for drum in drumuri_gasite:
-        print(f"Drum: {' -> '.join(drum['drum'])}, Flux adăugat: {drum['flux_adaugat']}")
+    print("=== ISTORIC ITERAȚII ===")
+    for i, it in enumerate(iteratii):
+        print(f"\nIterația {i + 1}:")
+        print(f"  Test optimalitate: {it['test_optimalitate']}")
+        
+        if it['drum_xt_xs']:
+            drum_str = " -> ".join(it['drum_xt_xs'])
+            print(f"  Drum xt -> xs:     {drum_str}")
+            print(f"  Minim valori:      {it['minim_valori']}")
+            print(f"  Flux maxim curent: {it['flux_maxim_moment']}")
+            
+    print(f"\nFLUX MAXIM FINAL: {flux_maxim}\n")
     
-    print("\nStarea finală a grafului:")
+    print("=== STAREA FINALĂ A GRAFULUI (Rețeaua Reziduală) ===")
     print(graf.afisare())
