@@ -31,7 +31,6 @@ class FlowNetworkView(QMainWindow):
         self._init_ui()
         self._calculeaza_layout_noduri()
         
-        # Generăm etichetele inițiale (la pasul 0)
         self.etichete_curente = self._genereaza_etichete()
         self._deseneaza_graf()
 
@@ -62,7 +61,6 @@ class FlowNetworkView(QMainWindow):
         self.btn_urmatorul.clicked.connect(self.pas_urmator)
         panou_control.addWidget(self.btn_urmatorul)
 
-        # Adăugăm butonul de Pas Înapoi
         self.btn_inapoi = QPushButton("Pas Înapoi")
         self.btn_inapoi.clicked.connect(self.pas_inapoi)
         panou_control.addWidget(self.btn_inapoi)
@@ -112,7 +110,6 @@ class FlowNetworkView(QMainWindow):
                 self.pozitii_noduri[nod] = QPointF(x, y)
 
     def _reconstruieste_stare_pana_la(self, pas_maxim):
-        """Regenerează istoricul fluxurilor de la zero până la iterația dorită."""
         self.istoric_fluxuri = self._init_istoric()
         for i in range(pas_maxim + 1):
             it = self.iteratii[i]
@@ -165,8 +162,8 @@ class FlowNetworkView(QMainWindow):
             self.pas_curent += 1
             it = self.iteratii[self.pas_curent]
             
-            drum_evidentiat = []
             if it['drum_xt_xs'] is not None:
+                drum_evidentiat = []
                 drum = list(reversed(it['drum_xt_xs'])) 
                 flux_adaugat = it['minim_valori']
                 
@@ -181,34 +178,44 @@ class FlowNetworkView(QMainWindow):
                         
                     drum_evidentiat.append((u, v))
                 
+                self.flux_curent_afisat = it['flux_maxim_moment']
+                self.etichete_curente = self._genereaza_etichete()
+                
                 mesaj = f"Drum găsit: {' -> '.join(drum)}\nFlux adăugat: {flux_adaugat}"
+                self.lbl_status.setText(f"Iterația {self.pas_curent + 1}\nFlux Maxim Curent: {self.flux_curent_afisat}")
+                self.consola.append(f"--- Iterația {self.pas_curent + 1} ---")
+                self.consola.append(mesaj)
+                self.consola.append(f"Test: {it['test_optimalitate']}\n")
+                
+                self._deseneaza_graf(muchii_evidentiate=drum_evidentiat)
+                
             else:
-                mesaj = "Nu s-au mai găsit drumuri. Algoritm terminat."
+                # Am ajuns la iterația finală în care nu se mai găsește drum
+                self.etichete_curente = {} # Curățăm etichetele
+                
+                set_muchii_taiate = set((m['de_la'], m['la']) for m in self.muchii_taiate)
+                
+                mesaj = f"Nu s-au mai găsit drumuri.\n\n=== REZULTAT FINAL ===\n"
+                mesaj += f"FLUX MAXIM: {self.flux_maxim_final}\n\n"
+                mesaj += "TĂIETURA MINIMĂ:\n"
+                for m in self.muchii_taiate:
+                    mesaj += f"  {m['de_la']} -> {m['la']} (Capacitate: {m['capacitate']})\n"
 
-            self.flux_curent_afisat = it['flux_maxim_moment']
-            self.etichete_curente = self._genereaza_etichete()
-            
-            self.lbl_status.setText(f"Iterația {self.pas_curent + 1}\nFlux Maxim Curent: {self.flux_curent_afisat}")
-            self.consola.append(f"--- Iterația {self.pas_curent + 1} ---")
-            self.consola.append(mesaj)
-            self.consola.append(f"Test: {it['test_optimalitate']}\n")
-
-            self._deseneaza_graf(drum_evidentiat)
-        else:
-            self.lbl_status.setText(f"Optimizare completă.\nFlux Maxim: {self.flux_maxim_final}")
-            self.etichete_curente = {}
-            self._deseneaza_graf()
+                self.lbl_status.setText(f"Optimizare completă.\nFlux Maxim: {self.flux_maxim_final}")
+                self.consola.append(f"--- FINAL ---")
+                self.consola.append(mesaj)
+                
+                # Desenăm graful evidențiind tăietura
+                self._deseneaza_graf(muchii_taiate=set_muchii_taiate)
 
     def pas_inapoi(self):
         if self.pas_curent >= 0:
             self.pas_curent -= 1
             
-            # Reconstruim starea matematică la noul pas curent
             self._reconstruieste_stare_pana_la(self.pas_curent)
             self.etichete_curente = self._genereaza_etichete()
             
             if self.pas_curent >= 0:
-                # Setăm UI-ul pentru iterația la care am aterizat
                 it = self.iteratii[self.pas_curent]
                 self.flux_curent_afisat = it['flux_maxim_moment']
                 self.lbl_status.setText(f"Iterația {self.pas_curent + 1}\nFlux Maxim Curent: {self.flux_curent_afisat}")
@@ -220,9 +227,8 @@ class FlowNetworkView(QMainWindow):
                     for i in range(len(drum) - 1):
                         drum_evidentiat.append((drum[i], drum[i+1]))
                 
-                self._deseneaza_graf(drum_evidentiat)
+                self._deseneaza_graf(muchii_evidentiate=drum_evidentiat)
             else:
-                # Am revenit la starea 0 (înainte de orice iterație)
                 self.flux_curent_afisat = 0
                 self.lbl_status.setText("Stare: Pregătit.\nApasă 'Următorul Pas' pentru a începe.")
                 self.consola.append("\n<<< Pas Înapoi (Starea Inițială) <<<")
@@ -237,14 +243,13 @@ class FlowNetworkView(QMainWindow):
         self.consola.clear()
         self._deseneaza_graf()
 
-    def _deseneaza_graf(self, muchii_evidentiate=None):
+    def _deseneaza_graf(self, muchii_evidentiate=None, muchii_taiate=None):
         self.scena.clear()
-        if muchii_evidentiate is None:
-            muchii_evidentiate = []
+        if muchii_evidentiate is None: muchii_evidentiate = []
+        if muchii_taiate is None: muchii_taiate = set()
 
         raza = 20
 
-        # 1. Desenăm muchiile și textul
         for date in self.problema['date_intrare'].values():
             u, v = date['node']
             capacitate = date['value']
@@ -254,9 +259,20 @@ class FlowNetworkView(QMainWindow):
             p1 = self.pozitii_noduri[u]
             p2 = self.pozitii_noduri[v]
 
-            culoare = QColor(255, 0, 0) if (u, v) in muchii_evidentiate or (v, u) in muchii_evidentiate else QColor(100, 100, 100)
-            grosime = 3 if (u, v) in muchii_evidentiate else 2
-            pen = QPen(culoare, grosime)
+            # Setare culori: Portocaliu punctat pt Tăietură, Roșu pt Drum Curent, Gri pt Normal
+            if (u, v) in muchii_taiate:
+                culoare = QColor(255, 140, 0) # Portocaliu
+                grosime = 4
+                pen = QPen(culoare, grosime, Qt.DashLine)
+            elif (u, v) in muchii_evidentiate or (v, u) in muchii_evidentiate:
+                culoare = QColor(255, 0, 0)
+                grosime = 3
+                pen = QPen(culoare, grosime)
+            else:
+                culoare = QColor(100, 100, 100)
+                grosime = 2
+                pen = QPen(culoare, grosime)
+                
             self.scena.addLine(p1.x(), p1.y(), p2.x(), p2.y(), pen)
 
             if not istoric:
@@ -296,7 +312,6 @@ class FlowNetworkView(QMainWindow):
                 text_item.setRotation(unghi_deg)
                 text_item.setPos(mid_x - text_rect.width() / 2, mid_y - text_rect.height() - 2)
 
-        # 2. Desenăm nodurile și etichetele
         for nod, pos in self.pozitii_noduri.items():
             rect = QRectF(pos.x() - raza, pos.y() - raza, raza * 2, raza * 2)
             
