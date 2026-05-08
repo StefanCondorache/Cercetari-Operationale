@@ -11,7 +11,7 @@ from Graph_back import Graph
 class FlowNetworkView(QMainWindow):
     def __init__(self, problema):
         super().__init__()
-        self.setWindowTitle("Ford-Fulkerson")
+        self.setWindowTitle("Ford-Fulkerson - Corectat DFS pe Indici")
         self.resize(1300, 850)
 
         self.problema = problema
@@ -19,7 +19,6 @@ class FlowNetworkView(QMainWindow):
         
         self.muchii_originale = set(date['node'] for date in self.problema['date_intrare'].values())
         
-        # Rulăm algoritmul
         self.flux_maxim_final, self.iteratii, self.muchii_taiate = self.backend.solve(**self.problema)
         
         self.pas_curent = -1
@@ -27,11 +26,10 @@ class FlowNetworkView(QMainWindow):
         self.pozitii_noduri = {}
         
         self.istoric_fluxuri = self._init_istoric()
+        self.etichete_curente = {}
 
         self._init_ui()
         self._calculeaza_layout_noduri()
-        
-        self.etichete_curente = self._genereaza_etichete()
         self._deseneaza_graf()
 
     def _init_istoric(self):
@@ -78,7 +76,6 @@ class FlowNetworkView(QMainWindow):
 
     def _calculeaza_layout_noduri(self):
         sursa = self.problema['sursa']
-        
         adancimi = {sursa: 0}
         coada = [(sursa, 0)]
         while coada:
@@ -97,7 +94,6 @@ class FlowNetworkView(QMainWindow):
         latime = 900
         inaltime = 750
         nr_layere = len(layere)
-        
         distanta_x = latime / max(1, nr_layere - 1)
         distanta_y_fixa = 150
         
@@ -119,43 +115,11 @@ class FlowNetworkView(QMainWindow):
                 for j in range(len(drum) - 1):
                     u = drum[j]
                     v = drum[j+1]
+                    # Adăugăm mereu cu PLUS pe oricare sens s-a folosit
                     if (u, v) in self.muchii_originale:
                         self.istoric_fluxuri[u][v].append(flux_adaugat)
                     elif (v, u) in self.muchii_originale:
-                        self.istoric_fluxuri[v][u].append(-flux_adaugat)
-
-    def _genereaza_etichete(self):
-        sursa = self.problema['sursa']
-        destinatie = self.problema['destinatie']
-        
-        graf_rezidual = {u: {} for u in self.pozitii_noduri}
-        for date in self.problema['date_intrare'].values():
-            u, v = date['node']
-            cap = date['value']
-            flux_curent = sum(self.istoric_fluxuri[u][v])
-            
-            graf_rezidual[u][v] = cap - flux_curent
-            graf_rezidual[v][u] = flux_curent
-            
-        etichete = {sursa: "(+)"}
-        coada = [sursa]
-        gasit = False
-        
-        while coada and not gasit:
-            u = coada.pop(0)
-            vecini = sorted(graf_rezidual[u].items(), key=lambda item: int(item[0].replace('x', '')) if item[0].replace('x', '').isdigit() else item[0])
-            
-            for v, capacitate in vecini:
-                if v not in etichete and capacitate > 0:
-                    if (u, v) in self.muchii_originale:
-                        etichete[v] = f"(+{u})"
-                    else:
-                        etichete[v] = f"(-{u})"
-                    coada.append(v)
-                    if v == destinatie:
-                        gasit = True
-                        break
-        return etichete
+                        self.istoric_fluxuri[v][u].append(flux_adaugat)
 
     def pas_urmator(self):
         if self.pas_curent < len(self.iteratii) - 1:
@@ -170,27 +134,26 @@ class FlowNetworkView(QMainWindow):
                 for i in range(len(drum) - 1):
                     u = drum[i]
                     v = drum[i+1]
-                    
+                    # Adăugăm mereu flux pozitiv
                     if (u, v) in self.muchii_originale:
                         self.istoric_fluxuri[u][v].append(flux_adaugat)
                     elif (v, u) in self.muchii_originale:
-                        self.istoric_fluxuri[v][u].append(-flux_adaugat)
+                        self.istoric_fluxuri[v][u].append(flux_adaugat)
                         
                     drum_evidentiat.append((u, v))
                 
                 self.flux_curent_afisat = it['flux_maxim_moment']
-                self.etichete_curente = self._genereaza_etichete()
+                # Preluăm etichetele direct din ce a decis Backend-ul pe foaie!
+                self.etichete_curente = it.get('etichete_ui', {})
                 
-                mesaj = f"Drum găsit: {' -> '.join(drum)}\nFlux adăugat: {flux_adaugat}"
                 self.lbl_status.setText(f"Iterația {self.pas_curent + 1}\nFlux Maxim Curent: {self.flux_curent_afisat}")
                 self.consola.append(f"--- Iterația {self.pas_curent + 1} ---")
-                self.consola.append(mesaj)
+                self.consola.append(f"Drum găsit: {' -> '.join(drum)}\nFlux adăugat: {flux_adaugat}")
                 self.consola.append(f"Test: {it['test_optimalitate']}\n")
                 
                 self._deseneaza_graf(muchii_evidentiate=drum_evidentiat)
-                
             else:
-                self.etichete_curente = {}
+                self.etichete_curente = it.get('etichete_ui', {})
                 set_muchii_taiate = set((m['de_la'], m['la']) for m in self.muchii_taiate)
                 
                 mesaj = f"Nu s-au mai găsit drumuri.\n\n=== REZULTAT FINAL ===\n"
@@ -210,10 +173,10 @@ class FlowNetworkView(QMainWindow):
             self.pas_curent -= 1
             
             self._reconstruieste_stare_pana_la(self.pas_curent)
-            self.etichete_curente = self._genereaza_etichete()
             
             if self.pas_curent >= 0:
                 it = self.iteratii[self.pas_curent]
+                self.etichete_curente = it.get('etichete_ui', {})
                 self.flux_curent_afisat = it['flux_maxim_moment']
                 self.lbl_status.setText(f"Iterația {self.pas_curent + 1}\nFlux Maxim Curent: {self.flux_curent_afisat}")
                 self.consola.append(f"\n<<< Pas Înapoi (la Iterația {self.pas_curent + 1}) <<<")
@@ -227,6 +190,7 @@ class FlowNetworkView(QMainWindow):
                 self._deseneaza_graf(muchii_evidentiate=drum_evidentiat)
             else:
                 self.flux_curent_afisat = 0
+                self.etichete_curente = {}
                 self.lbl_status.setText("Stare: Pregătit.\nApasă 'Următorul Pas' pentru a începe.")
                 self.consola.append("\n<<< Pas Înapoi (Starea Inițială) <<<")
                 self._deseneaza_graf()
@@ -235,7 +199,7 @@ class FlowNetworkView(QMainWindow):
         self.pas_curent = -1
         self.flux_curent_afisat = 0
         self.istoric_fluxuri = self._init_istoric()
-        self.etichete_curente = self._genereaza_etichete()
+        self.etichete_curente = {}
         self.lbl_status.setText("Stare: Pregătit.\nApasă 'Următorul Pas' pentru a începe.")
         self.consola.clear()
         self._deseneaza_graf()
@@ -244,10 +208,8 @@ class FlowNetworkView(QMainWindow):
         self.scena.clear()
         if muchii_evidentiate is None: muchii_evidentiate = []
         if muchii_taiate is None: muchii_taiate = set()
-
         raza = 20
 
-        # Desenăm muchiile, săgețile și textul
         for date in self.problema['date_intrare'].values():
             u, v = date['node']
             capacitate = date['value']
@@ -257,7 +219,6 @@ class FlowNetworkView(QMainWindow):
             p1 = self.pozitii_noduri[u]
             p2 = self.pozitii_noduri[v]
 
-            # Setare culori
             if (u, v) in muchii_taiate:
                 culoare = QColor(255, 140, 0)
                 grosime = 4
@@ -271,17 +232,14 @@ class FlowNetworkView(QMainWindow):
                 grosime = 2
                 pen = QPen(culoare, grosime)
                 
-            # 1. Desenăm linia
             self.scena.addLine(p1.x(), p1.y(), p2.x(), p2.y(), pen)
 
-            # 2. Desenăm săgeata la destinație (calculând intersecția cu cercul nodului)
             dx = p2.x() - p1.x()
             dy = p2.y() - p1.y()
             unghi_rad = math.atan2(dy, dx)
             
             contact_x = p2.x() - raza * math.cos(unghi_rad)
             contact_y = p2.y() - raza * math.sin(unghi_rad)
-            
             dim_sageata = 12
             p_sag1 = QPointF(contact_x - dim_sageata * math.cos(unghi_rad - math.pi / 6),
                              contact_y - dim_sageata * math.sin(unghi_rad - math.pi / 6))
@@ -289,13 +247,11 @@ class FlowNetworkView(QMainWindow):
                              contact_y - dim_sageata * math.sin(unghi_rad + math.pi / 6))
             
             sageata = QPolygonF([QPointF(contact_x, contact_y), p_sag1, p_sag2])
-            
-            # Umplem săgeata cu aceeași culoare ca muchia
             brush = QBrush(culoare)
-            if (u, v) in muchii_taiate: brush = QBrush(Qt.NoBrush) # Fără umplere pentru tăieturi
+            if (u, v) in muchii_taiate: brush = QBrush(Qt.NoBrush) 
             self.scena.addPolygon(sageata, pen, brush)
 
-            # 3. Adăugăm textul
+            # Acum folosim MEREU semnul PLUS la adunarea textului pe arce
             if not istoric:
                 text_flux = f"{capacitate} = 0"
             else:
@@ -304,11 +260,10 @@ class FlowNetworkView(QMainWindow):
                     if not elemente:
                         elemente.append(str(val))
                     else:
-                        semn = "+" if val >= 0 else "-"
-                        elemente.append(f"{semn} {abs(val)}")
+                        elemente.append(f"+ {val}")
                 text_flux = f"{capacitate} = {' '.join(elemente)}"
             
-            if flux_total == capacitate:
+            if flux_total >= capacitate:
                 text_flux += " ●"
             else:
                 text_flux += " +"
@@ -329,7 +284,6 @@ class FlowNetworkView(QMainWindow):
                 text_item.setRotation(unghi_deg)
                 text_item.setPos(mid_x - text_rect.width() / 2, mid_y - text_rect.height() - 2)
 
-        # Desenăm nodurile și etichetele
         for nod, pos in self.pozitii_noduri.items():
             rect = QRectF(pos.x() - raza, pos.y() - raza, raza * 2, raza * 2)
             
@@ -355,19 +309,19 @@ if __name__ == "__main__":
             'c1': {'node': ('x1', 'x2'), 'value': 20},
             'c2': {'node': ('x1', 'x3'), 'value': 30},
             'c3': {'node': ('x1', 'x4'), 'value': 40},
-            'c4': {'node': ('x2', 'x7'), 'value': 21},
-            'c5': {'node': ('x2', 'x5'), 'value': 22},
-            'c6': {'node': ('x3', 'x5'), 'value': 11},
-            'c7': {'node': ('x3', 'x8'), 'value': 23},
-            'c8': {'node': ('x3', 'x6'), 'value': 8},
-            'c9': {'node': ('x4', 'x6'), 'value': 24},
-            'c10': {'node': ('x4', 'x9'), 'value': 25},
+            'c4': {'node': ('x2', 'x7'), 'value': 10},
+            'c5': {'node': ('x2', 'x5'), 'value': 28},
+            'c6': {'node': ('x3', 'x5'), 'value': 17},
+            'c7': {'node': ('x3', 'x8'), 'value': 4},
+            'c8': {'node': ('x3', 'x6'), 'value': 18},
+            'c9': {'node': ('x4', 'x6'), 'value': 19},
+            'c10': {'node': ('x4', 'x9'), 'value': 23},
             'c11': {'node': ('x5', 'x7'), 'value': 10},
             'c12': {'node': ('x5', 'x8'), 'value': 9},
             'c13': {'node': ('x6', 'x8'), 'value': 12},
             'c14': {'node': ('x6', 'x9'), 'value': 8},
             'c15': {'node': ('x7', 'x10'), 'value': 31},
-            'c16': {'node': ('x8', 'x10'), 'value': 26},
+            'c16': {'node': ('x8', 'x10'), 'value': 19},
             'c17': {'node': ('x9', 'x10'), 'value': 42}
         },
         'sursa': 'x1',
