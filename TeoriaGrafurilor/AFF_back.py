@@ -1,4 +1,3 @@
-import copy
 import re
 
 def extrage_index(nume_nod):
@@ -6,7 +5,7 @@ def extrage_index(nume_nod):
     match = re.search(r'\d+', nume_nod)
     return int(match.group()) if match else float('inf')
 
-class Graph:   
+class AFF:   
 
     def solve(self, **problema):
         self.graf = {}
@@ -221,7 +220,7 @@ if __name__ == "__main__":
         'destinatie': 'x10'
     }
     
-    graf = Graph()
+    graf = AFF()
     flux_maxim, iteratii, muchii_taiate = graf.solve(**problema)
     
     print("=== ISTORIC ITERAȚII ===")
