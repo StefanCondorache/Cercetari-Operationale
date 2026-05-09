@@ -1,58 +1,34 @@
-# Ford-Fulkerson Algorithm Visualizer
+# Graph Theory & Network Optimizations
 
-This project is a Python-based interactive application that calculates and visualizes the maximum flow in a flow network using the **Ford-Fulkerson Algorithm** (implemented via Breadth-First Search, also known as the Edmonds-Karp algorithm).
+This module contains interactive Python-based applications that solve and visually demonstrate two of the most well-known graph optimization problems.
 
-## Features
+The module is integrated into the main suite and features graphical configuration screens (tables) for dynamic data input.
 
-The application provides an interactive Graphical User Interface (GUI) designed to help users dissect and understand the underlying mathematics of the algorithm:
-* **Step-by-Step Visualization:** Advance through the algorithm iteration by iteration to see exactly how the flow is formed.
-* **Accurate Node Labeling:** Displays standard algorithmic labels, using `(+x)` for forward edge traversal and `(-x)` for backward residual edge traversal.
-* **Detailed Flow History:** Edges display a cumulative history of flow additions/subtractions (e.g., `21 = 20 + 1 ●`). Saturated edges are clearly marked with a `●`, while unsaturated ones are marked with a `+`.
-* **Bidirectional Navigation:** A "Step Back" feature allows you to undo the last iteration and reconstruct the previous mathematical state, making it easier to analyze complex paths and residual flows.
-* **Min-Cut Visualization:** Upon completion, the "bottleneck" edges that restrict the flow (the minimum cut) are graphically highlighted with dashed orange lines, practically demonstrating the Max-Flow Min-Cut Theorem.
+## 1. Ford-Fulkerson Algorithm Visualizer (Max Flow)
 
-## Project Structure
+Calculates and displays the maximum flow that can traverse a network from a source node to a sink node (implemented via Breadth-First Search, also known as the Edmonds-Karp algorithm).
 
-* `Graph_back.py` - The backend engine. The `Graph` class processes the input data, solves the mathematical problem, and generates the iteration history, the maximum flow, and the minimum cut edges.
-* `Graph_front.py` - The frontend GUI built with **PySide6**. It handles rendering the nodes, directional arrows, labels, and the logic for the navigation buttons.
-* `requirements.txt` - The list of dependencies required to run the project.
+### Features
+* **Step-by-Step Visualization:** Advance through the algorithm iteration by iteration to observe the flow's path through the network.
+* **Accurate Labeling:** Displays standard algorithmic labels (e.g., `(+x)` for forward edges and `(-x)` for backward edges).
+* **Detailed Flow History:** A cumulative history of the flow is displayed on the edges (e.g., `20 = 10 + 10 ●`). Saturated edges are clearly marked with a `●`, and unsaturated ones with a `+`.
+* **Bidirectional Navigation:** The "Step Back" button allows you to undo the last iteration for a deeper analysis of residual graphs.
+* **Min-Cut Theorem:** Upon completion of the algorithm, the "bottleneck" edges that restrict the network (the minimum cut) are highlighted with dashed orange lines.
 
-## Installation
+## 2. Hungarian Algorithm Visualizer (Assignment Problem)
 
-1. Ensure you have [Python](https://www.python.org/downloads/) installed (version 3.8 or newer).
-2. (Optional but recommended) Create and activate a virtual environment:
-   ```bash
-   python -m venv venv
-   
-   # On Windows:
-   venv\Scripts\activate
-   
-   # On Linux/macOS:
-   source venv/bin/activate
-   ```
-3. Install the required dependencies:
-   ```bash
-   pip install -r requirements.txt
-   ```
+Finds the minimum cost perfect matching in a bipartite graph (e.g., the optimal allocation of `N` workers to `N` tasks).
 
-## Usage
+### Features
+* **Bipartite Representation:** Visualizes the solution as two independent sets of nodes (Left - `L` and Right - `R`), drawing the matching connections between them.
+* **Matrix Reductions Console:** While the visualization focuses on the graph, the side console clearly shows the matrix transformations (framed zeros `[0]`, crossed-out zeros `0x`, and row/column coverage with asterisks `*`).
+* **Dynamic Matching Update:** At each failed step, the algorithm calculates `epsilon` and modifies the matrix, reflecting the newly found partial matching in the interface.
+* **Mathematical Validation:** The final solution displayed in the console includes the minimum assignment cost and the cross-verification test of sums (minimums + epsilons).
 
-To launch the graphical visualizer, run the main frontend script:
+## How to Run
 
-```bash
-python Graph_front.py
-```
+This module can be ran in isolation using the following command:
 
-## Customizing the Input Data
-At the bottom of the `Graph_front.py` file, there is a dictionary named `problema_test`. You can modify this dictionary to build and solve your own custom flow networks. Ensure you maintain the following structure:
+`.venv/bin/python3 -m TeoriaGrafurilor.main`
 
-```python
-problema_test = {
-    'date_intrare': {
-        'c1': {'node': ('start_node', 'target_node'), 'value': capacity},
-        # ... add as many edges as needed
-    },
-    'sursa': 'name_of_source_node',
-    'destinatie': 'name_of_sink_node'
-}
-```
+Once the menu opens, choose between the Max Flow and Assignment problems, and then input your data into the configuration tables.
