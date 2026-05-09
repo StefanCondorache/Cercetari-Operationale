@@ -47,29 +47,32 @@ Because the modules in this project share functionalities and are structured as 
 The simplest way to interact with the project is by launching the central menu, which allows you to visually navigate to any desired algorithm.
 
 Activate your virtual environment (if you are using one) and run the `main` module:
-`.venv/bin/python3 -m main`
+```python
+.venv/bin/python3 -m main`
+```
 
 *(In case you do not use an environment use plain python3 instead of .venv/bin/python3)*
+
 *(From the menu that opens, you can select any of the 4 problems, configure input data in graphical tables, and run the visualizations).*
 
 ### Running the Mathematical Engines (Backend / Test Suite)
 
 If you wish to run the calculation engines directly from the terminal to test hardcoded problems (without opening the GUI), execute the specific `_back` modules:
 
-# For Simplex
+### For Simplex
 `.venv/bin/python3 -m ProblemaLineara.ASP_back`
 
-# For Transportation Problem
+### For Game Theory
+`.venv/bin/python3 -m TeoriaJocurilor.JOC_back`
+
+### For Transportation Problem
 `.venv/bin/python3 -m ProblemaTransporturilor.Transport_back`
 
-# For Ford-Fulkerson (Max Flow)
+### For Ford-Fulkerson (Max Flow)
 `.venv/bin/python3 -m TeoriaGrafurilor.AFF_back`
 
-# For Hungarian Algorithm (Assignment)
+### For Hungarian Algorithm (Assignment)
 `.venv/bin/python3 -m TeoriaGrafurilor.AU_back`
-
-# For Game Theory
-`.venv/bin/python3 -m TeoriaJocurilor.JOC_back`
 
 ---
 
