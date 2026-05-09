@@ -5,7 +5,7 @@ def extrage_index(nume_nod):
     match = re.search(r'\d+', nume_nod)
     return int(match.group()) if match else float('inf')
 
-class AFF:   
+class FordFulkerson:   
 
     def solve(self, **problema):
         self.graf = {}
@@ -220,7 +220,7 @@ if __name__ == "__main__":
         'destinatie': 'x10'
     }
     
-    graf = AFF()
+    graf = FordFulkerson()
     flux_maxim, iteratii, muchii_taiate = graf.solve(**problema)
     
     print("=== ISTORIC ITERAȚII ===")

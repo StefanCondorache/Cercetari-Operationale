@@ -6,7 +6,7 @@ from PySide6.QtWidgets import (QApplication, QMainWindow, QGraphicsScene,
 from PySide6.QtGui import QPen, QBrush, QColor, QFont, QPainter, QPolygonF
 from PySide6.QtCore import Qt, QPointF, QRectF
 
-from TeoriaGrafurilor.AFF_back import AFF
+from TeoriaGrafurilor.AFF_back import FordFulkerson
 
 class FlowNetworkView(QMainWindow):
     def __init__(self, problema):
@@ -15,7 +15,7 @@ class FlowNetworkView(QMainWindow):
         self.resize(1300, 850)
 
         self.problema = problema
-        self.backend = AFF()
+        self.backend = FordFulkerson()
         
         self.muchii_originale = set(date['node'] for date in self.problema['date_intrare'].values())
         
