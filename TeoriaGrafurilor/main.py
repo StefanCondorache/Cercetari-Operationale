@@ -1,21 +1,23 @@
+# Copyright (c) 2026. All rights reserved.
 import sys
 import re
 from PySide6.QtWidgets import (QApplication, QWidget, QVBoxLayout, QPushButton, 
                                QLabel, QLineEdit, QMessageBox, 
                                QHBoxLayout, QSpinBox, QTableWidget, QTableWidgetItem,
                                QHeaderView, QGroupBox, QScrollArea)
-from PySide6.QtGui import QFont, QIntValidator
+from PySide6.QtGui import QFont, QColor  # CORECTARE: QColor a fost mutat corect în QtGui
 from PySide6.QtCore import Qt
 
-# Importuri folosind structura de pachet TeoriaGrafurilor
+# Importuri pachete interne
 try:
     from TeoriaGrafurilor.AFF_front import FlowNetworkView
     from TeoriaGrafurilor.AU_front import HungarianView
+    from TeoriaGrafurilor.BK_front import BellmanKalabaView
 except ImportError as e:
-    print(f"Eroare la importul modulelor front. Asigurați-vă că fișierele există și importurile interne sunt actualizate: {e}")
+    print(f"Eroare la importul modulelor front: {e}")
     sys.exit(1)
 
-# Stilizare globală similară cu exemplele
+# Stilizare globală uniformă
 STYLESHEET = """
 QWidget {
     font-size: 14px;
@@ -39,288 +41,32 @@ QTableWidget {
 QHeaderView::section {
     background-color: #f0f0f0;
     padding: 4px;
-    border: 1px solid #d0d0d0;
+    border: 1px solid #ababab;
+    font-weight: bold;
+}
+QGroupBox {
     font-weight: bold;
 }
 """
 
-class FFConfigWindow(QWidget):
-    """Fereastră profesională pentru configurarea datelor Ford-Fulkerson."""
-    def __init__(self, parent_launcher):
-        super().__init__()
-        self.launcher = parent_launcher
-        self.setWindowTitle("Configurare Rețea de Flux (Ford-Fulkerson)")
-        self.resize(800, 600)
-        self.setStyleSheet(STYLESHEET)
-        
-        main_layout = QVBoxLayout(self)
-        
-        # --- Secțiunea 1: Definire Dimensiuni ---
-        group_dims = QGroupBox("1. Definire Structură Graf")
-        dims_layout = QHBoxLayout(group_dims)
-        
-        dims_layout.addWidget(QLabel("Număr Noduri (N):"))
-        self.spin_nodes = QSpinBox()
-        self.spin_nodes.setRange(2, 50)
-        self.spin_nodes.setValue(5)
-        dims_layout.addWidget(self.spin_nodes)
-        
-        dims_layout.addWidget(QLabel("Număr Arce (M):"))
-        self.spin_edges = QSpinBox()
-        self.spin_edges.setRange(1, 200)
-        self.spin_edges.setValue(6)
-        dims_layout.addWidget(self.spin_edges)
-        
-        btn_gen_table = QPushButton("Generează Tabel Arce")
-        btn_gen_table.clicked.connect(self.generate_table)
-        dims_layout.addWidget(btn_gen_table)
-        
-        main_layout.addWidget(group_dims)
-        
-        # --- Secțiunea 2: Tabel Introducere Date ---
-        self.group_table = QGroupBox("2. Introducere Arce și Capacități")
-        self.group_table.setHidden(True) # Ascuns inițial
-        table_layout = QVBoxLayout(self.group_table)
-        
-        self.table_edges = QTableWidget()
-        self.table_edges.setColumnCount(3)
-        self.table_edges.setHorizontalHeaderLabels(["Nod Sursă", "Nod Destinație", "Capacitate"])
-        self.table_edges.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        table_layout.addWidget(self.table_edges)
-        
-        # Setări Sursă/Destinație Globală
-        sd_layout = QHBoxLayout()
-        self.txt_source = QLineEdit("x1")
-        self.txt_sink = QLineEdit("x5")
-        sd_layout.addWidget(QLabel("Nod Sursă Rețea:"))
-        sd_layout.addWidget(self.txt_source)
-        sd_layout.addWidget(QLabel("Nod Destinație Rețea:"))
-        sd_layout.addWidget(self.txt_sink)
-        table_layout.addLayout(sd_layout)
-        
-        main_layout.addWidget(self.group_table)
-        
-        # --- Secțiunea 3: Acțiuni ---
-        action_layout = QHBoxLayout()
-        btn_back = QPushButton("Înapoi la Meniu")
-        btn_back.clicked.connect(self.back_to_menu)
-        action_layout.addWidget(btn_back)
-        
-        action_layout.addStretch()
-        
-        self.btn_run = QPushButton("Lansează Vizualizarea")
-        self.btn_run.setMinimumWidth(200)
-        self.btn_run.setHidden(True)
-        self.btn_run.clicked.connect(self.parse_and_run)
-        action_layout.addWidget(self.btn_run)
-        
-        main_layout.addLayout(action_layout)
-
-    def generate_table(self):
-        m = self.spin_edges.value()
-        n = self.spin_nodes.value()
-        self.table_edges.setRowCount(m)
-        
-        # Setăm validator pentru capacități (doar numere pozitive)
-        int_validator = QIntValidator(1, 100000)
-        
-        for row in range(m):
-            # Nod Sursă implicit (ex: x1, x2...)
-            u_item = QTableWidgetItem(f"x{min(row + 1, n)}")
-            self.table_edges.setItem(row, 0, u_item)
-            
-            # Nod Destinație implicit
-            v_item = QTableWidgetItem(f"x{min(row + 2, n)}")
-            self.table_edges.setItem(row, 1, v_item)
-            
-            # Capacitate implicită 10
-            cap_item = QTableWidgetItem("10")
-            cap_item.setTextAlignment(Qt.AlignCenter)
-            self.table_edges.setItem(row, 2, cap_item)
-
-        # Actualizăm nodul sink implicit în funcție de N
-        self.txt_sink.setText(f"x{n}")
-        
-        self.group_table.setHidden(False)
-        self.btn_run.setHidden(False)
-
-    def parse_and_run(self):
-        try:
-            m = self.table_edges.rowCount()
-            date_intrare = {}
-            nodes_found = set()
-            
-            for row in range(m):
-                u_item = self.table_edges.item(row, 0)
-                v_item = self.table_edges.item(row, 1)
-                cap_item = self.table_edges.item(row, 2)
-                
-                if not u_item or not v_item or not cap_item: raise ValueError(f"Completatți toate celulele la rândul {row+1}")
-                
-                u = u_item.text().strip()
-                v = v_item.text().strip()
-                cap_str = cap_item.text().strip()
-                
-                if not u or not v or not cap_str: raise ValueError(f"Date lipsă la rândul {row+1}")
-                if not cap_str.isdigit(): raise ValueError(f"Capacitatea la rândul {row+1} trebuie să fie număr.")
-                
-                cap = int(cap_str)
-                if cap <= 0: raise ValueError(f"Capacitatea la rândul {row+1} trebuie să fie > 0.")
-                
-                date_intrare[f'c{row+1}'] = {'node': (u, v), 'value': cap}
-                nodes_found.add(u)
-                nodes_found.add(v)
-            
-            sursa = self.txt_source.text().strip()
-            destinatie = self.txt_sink.text().strip()
-            
-            # Validări logice
-            if sursa not in nodes_found: raise ValueError(f"Nodul sursă '{sursa}' nu există în arcele introduse.")
-            if destinatie not in nodes_found: raise ValueError(f"Nodul destinație '{destinatie}' nu există în arcele introduse.")
-            if sursa == destinatie: raise ValueError("Sursa nu poate fi egală cu destinația.")
-
-            problema = {
-                'date_intrare': date_intrare,
-                'sursa': sursa,
-                'destinatie': destinatie
-            }
-            
-            self.view = FlowNetworkView(problema)
-            self.view.show()
-            self.close()
-            self.launcher.close()
-            
-        except ValueError as e:
-            QMessageBox.warning(self, "Eroare Validare", str(e))
-        except Exception as e:
-            QMessageBox.critical(self, "Eroare Critică", f"A apărut o eroare neașteptată: {str(e)}")
-
-    def back_to_menu(self):
-        self.launcher.show()
-        self.close()
-
-
-class AUConfigWindow(QWidget):
-    """Fereastră profesională pentru introducerea Matricei Algoritmului Ungar."""
-    def __init__(self, parent_launcher):
-        super().__init__()
-        self.launcher = parent_launcher
-        self.setWindowTitle("Configurare Algoritm Ungar (Matrice Costuri)")
-        self.resize(700, 550)
-        self.setStyleSheet(STYLESHEET)
-        
-        main_layout = QVBoxLayout(self)
-        
-        # --- Secțiunea 1: Dimensiune ---
-        group_dims = QGroupBox("1. Definire Dimensiune Matrice (Păstratică N x N)")
-        dims_layout = QHBoxLayout(group_dims)
-        dims_layout.addWidget(QLabel("Dimensiune N:"))
-        self.spin_n = QSpinBox()
-        self.spin_n.setRange(2, 20)
-        self.spin_n.setValue(4)
-        dims_layout.addWidget(self.spin_n)
-        
-        btn_gen_matrix = QPushButton("Generează Matrice")
-        btn_gen_matrix.clicked.connect(self.generate_matrix)
-        dims_layout.addWidget(btn_gen_matrix)
-        dims_layout.addStretch()
-        
-        main_layout.addWidget(group_dims)
-        
-        # --- Secțiunea 2: Tabel Introducere Costuri ---
-        self.group_matrix = QGroupBox("2. Introducere Costuri Afectare")
-        self.group_matrix.setHidden(True)
-        matrix_layout = QVBoxLayout(self.group_matrix)
-        
-        self.table_matrix = QTableWidget()
-        self.table_matrix.horizontalHeader().setSectionResizeMode(QHeaderView.Stretch)
-        # Permitem scroll dacă e prea mare
-        scroll = QScrollArea()
-        scroll.setWidgetResizable(True)
-        scroll.setWidget(self.table_matrix)
-        matrix_layout.addWidget(scroll)
-        
-        main_layout.addWidget(self.group_matrix)
-        
-        # --- Secțiunea 3: Acțiuni ---
-        action_layout = QHBoxLayout()
-        btn_back = QPushButton("Înapoi la Meniu")
-        btn_back.clicked.connect(self.back_to_menu)
-        action_layout.addWidget(btn_back)
-        
-        action_layout.addStretch()
-        
-        self.btn_run = QPushButton("Lansează Rezolvarea")
-        self.btn_run.setMinimumWidth(200)
-        self.btn_run.setHidden(True)
-        self.btn_run.clicked.connect(self.parse_and_run)
-        action_layout.addWidget(self.btn_run)
-        
-        main_layout.addLayout(action_layout)
-
-    def generate_matrix(self):
-        n = self.spin_n.value()
-        self.table_matrix.setRowCount(n)
-        self.table_matrix.setColumnCount(n)
-        
-        # Header-e (L1, L2... pentru linii, R1, R2... pentru coloane)
-        self.table_matrix.setVerticalHeaderLabels([f"L{i+1}" for i in range(n)])
-        self.table_matrix.setHorizontalHeaderLabels([f"R{i+1}" for i in range(n)])
-        
-        for i in range(n):
-            for j in range(n):
-                # Inițializare cu 0 sau valori aleatorii
-                item = QTableWidgetItem("0")
-                item.setTextAlignment(Qt.AlignCenter)
-                self.table_matrix.setItem(i, j, item)
-        
-        self.group_matrix.setHidden(False)
-        self.btn_run.setHidden(False)
-
-    def parse_and_run(self):
-        try:
-            n = self.table_matrix.rowCount()
-            matrix = []
-            for i in range(n):
-                row = []
-                for j in range(n):
-                    item = self.table_matrix.item(i, j)
-                    if not item: raise ValueError(f"Celula ({i+1},{j+1}) este goală.")
-                    val_str = item.text().strip()
-                    if not val_str.isdigit(): raise ValueError(f"Costul la ({i+1},{j+1}) trebuie să fie număr.")
-                    row.append(int(val_str))
-                matrix.append(row)
-            
-            # Matricea e garantat pătratică din QTableWidget
-            self.view = HungarianView(matrix)
-            self.view.show()
-            self.close()
-            self.launcher.close()
-            
-        except ValueError as e:
-            QMessageBox.warning(self, "Eroare Validare", str(e))
-        except Exception as e:
-            QMessageBox.critical(self, "Eroare Critică", f"A apărut o eroare neașteptată: {str(e)}")
-
-    def back_to_menu(self):
-        self.launcher.show()
-        self.close()
-
 class MainLauncher(QWidget):
-    """Meniu principal îmbunătățit."""
-    def __init__(self):
+    def __init__(self) -> None:
         super().__init__()
-        self.setWindowTitle("Teoria Grafurilor - Selector Algoritm")
-        self.setFixedSize(450, 250)
+        self.setWindowTitle("Selectați Problema de Rezolvat")
+        self.setFixedSize(500, 400)
         self.setStyleSheet(STYLESHEET)
         
         layout = QVBoxLayout(self)
         layout.setContentsMargins(20, 20, 20, 20)
         layout.setSpacing(15)
         
-        title = QLabel("Selectați Problema de Rezolvat")
-        title.setFont(QFont("Arial", 16, QFont.Bold))
-        title.setAlignment(Qt.AlignCenter)
+        title = QLabel("Sistem de Gestiune Algoritmi pe Grafuri")
+        # CORECTARE: În PySide6 se folosește QFont.Weight.Bold pentru setarea stilului gros
+        font_titlu = QFont("Arial", 16)
+        font_titlu.setWeight(QFont.Weight.Bold)
+        title.setFont(font_titlu)
+        # CORECTARE: Qt.AlignmentFlag pentru alinierea corectă din punct de vedere static
+        title.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(title)
         
         self.btn_ff = QPushButton("1. Ford-Fulkerson (Flux Maxim în Rețea)")
@@ -332,27 +78,370 @@ class MainLauncher(QWidget):
         self.btn_au.setMinimumHeight(45)
         self.btn_au.clicked.connect(self.open_au_config)
         layout.addWidget(self.btn_au)
+
+        self.btn_bk = QPushButton("3. Bellman-Kalaba (Matriceal - Drum Minim)")
+        self.btn_bk.setMinimumHeight(45)
+        self.btn_bk.clicked.connect(self.open_bk_config)
+        layout.addWidget(self.btn_bk)
         
         layout.addStretch()
         
-        footer = QLabel("Suport pentru input dynamic prin tabele")
+        footer = QLabel("Suport complet pentru configurare dinamică prin tabele")
         footer.setFont(QFont("Arial", 9))
-        footer.setAlignment(Qt.AlignRight)
+        footer.setAlignment(Qt.AlignmentFlag.AlignRight)
         layout.addWidget(footer)
 
-    def open_ff_config(self):
+        self.config_win: QWidget | None = None
+
+    def open_ff_config(self) -> None:
         self.config_win = FFConfigWindow(self)
         self.config_win.show()
         self.hide()
 
-    def open_au_config(self):
+    def open_au_config(self) -> None:
         self.config_win = AUConfigWindow(self)
         self.config_win.show()
         self.hide()
 
+    def open_bk_config(self) -> None:
+        self.config_win = BKConfigWindow(self)
+        self.config_win.show()
+        self.hide()
+
+
+# ==============================================================================
+# CONFIGURARE FORD-FULKERSON
+# ==============================================================================
+class FFConfigWindow(QWidget):
+    def __init__(self, launcher: MainLauncher) -> None:
+        super().__init__()
+        self.launcher = launcher
+        self.setWindowTitle("Configurare Ford-Fulkerson")
+        self.resize(650, 500)
+        self.setStyleSheet(STYLESHEET)
+        
+        layout = QVBoxLayout(self)
+        
+        gb_dim = QGroupBox("1. Dimensiune Rețea")
+        ly_dim = QHBoxLayout(gb_dim)
+        ly_dim.addWidget(QLabel("Număr de arce (muchii):"))
+        self.spin_arce = QSpinBox()
+        self.spin_arce.setRange(1, 100)
+        self.spin_arce.setValue(5)
+        ly_dim.addWidget(self.spin_arce)
+        
+        btn_gen = QPushButton("Generează Tabel Arce")
+        btn_gen.clicked.connect(self.generate_table)
+        ly_dim.addWidget(btn_gen)
+        layout.addWidget(gb_dim)
+        
+        self.gb_table = QGroupBox("2. Date Rețea și Capacități")
+        self.gb_table.setHidden(True)
+        ly_table = QVBoxLayout(self.gb_table)
+        
+        self.table = QTableWidget()
+        self.table.setColumnCount(3)
+        self.table.setHorizontalHeaderLabels(["Nod Sursă (u)", "Nod Destinație (v)", "Capacitate"])
+        # CORECTARE: QHeaderView.ResizeMode.Stretch
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setWidget(self.table)
+        ly_table.addWidget(scroll)
+        
+        ly_sd = QHBoxLayout()
+        ly_sd.addWidget(QLabel("Sursă Globală (xs):"))
+        self.txt_sursa = QLineEdit("x1")
+        ly_sd.addWidget(self.txt_sursa)
+        ly_sd.addWidget(QLabel("Destinație Globală (xt):"))
+        self.txt_dest = QLineEdit("x4")
+        ly_sd.addWidget(self.txt_dest)
+        ly_table.addLayout(ly_sd)
+        layout.addWidget(self.gb_table)
+        
+        ly_actions = QHBoxLayout()
+        btn_back = QPushButton("Înapoi")
+        btn_back.clicked.connect(self.go_back)
+        ly_actions.addWidget(btn_back)
+        ly_actions.addStretch()
+        self.btn_run = QPushButton("Rulează Algoritmul")
+        self.btn_run.setHidden(True)
+        self.btn_run.clicked.connect(self.run_algorithm)
+        ly_actions.addWidget(self.btn_run)
+        layout.addLayout(ly_actions)
+
+    def generate_table(self) -> None:
+        n = self.spin_arce.value()
+        self.table.setRowCount(n)
+        for i in range(n):
+            self.table.setItem(i, 0, QTableWidgetItem(f"x{i+1}"))
+            self.table.setItem(i, 1, QTableWidgetItem(f"x{i+2}"))
+            item_val = QTableWidgetItem("10")
+            self.table.setItem(i, 2, item_val)
+        self.gb_table.setHidden(False)
+        self.btn_run.setHidden(False)
+
+    def run_algorithm(self) -> None:
+        try:
+            date_intrare = {}
+            for i in range(self.table.rowCount()):
+                item_u = self.table.item(i, 0)
+                item_v = self.table.item(i, 1)
+                item_val = self.table.item(i, 2)
+                
+                # CORECTARE: Verificare de siguranță împotriva valorilor opționale (None)
+                if not item_u or not item_v or not item_val:
+                    raise ValueError("Toate celulele trebuie completate!")
+                    
+                u = item_u.text().strip()
+                v = item_v.text().strip()
+                val_text = item_val.text().strip()
+                
+                if not u or not v or not val_text:
+                    raise ValueError("Toate celulele trebuie completate!")
+                val = int(val_text)
+                date_intrare[f"c{i+1}"] = {'node': (u, v), 'value': val}
+            
+            problema = {
+                'date_intrare': date_intrare,
+                'sursa': self.txt_sursa.text().strip(),
+                'destinatie': self.txt_dest.text().strip()
+            }
+            self.output_win = FlowNetworkView(problema)
+            self.output_win.show()
+            self.close()
+        except ValueError as e:
+            QMessageBox.warning(self, "Eroare Validare", str(e))
+
+    def go_back(self) -> None:
+        self.launcher.show()
+        self.close()
+
+
+# ==============================================================================
+# CONFIGURARE ALGORITMUL UNGAR
+# ==============================================================================
+class AUConfigWindow(QWidget):
+    def __init__(self, launcher: MainLauncher) -> None:
+        super().__init__()
+        self.launcher = launcher
+        self.setWindowTitle("Configurare Algoritmul Ungar")
+        self.resize(600, 500)
+        self.setStyleSheet(STYLESHEET)
+        
+        layout = QVBoxLayout(self)
+        
+        gb_dim = QGroupBox("1. Dimensiune Problemă (Matrice Pătratică)")
+        ly_dim = QHBoxLayout(gb_dim)
+        ly_dim.addWidget(QLabel("Număr de elemente (N x N):"))
+        self.spin_n = QSpinBox()
+        self.spin_n.setRange(2, 20)
+        self.spin_n.setValue(4)
+        ly_dim.addWidget(self.spin_n)
+        
+        btn_gen = QPushButton("Generează Matrice")
+        btn_gen.clicked.connect(self.generate_matrix)
+        ly_dim.addWidget(btn_gen)
+        layout.addWidget(gb_dim)
+        
+        self.gb_matrix = QGroupBox("2. Matricea de Costuri")
+        self.gb_matrix.setHidden(True)
+        ly_matrix = QVBoxLayout(self.gb_matrix)
+        
+        self.table = QTableWidget()
+        # CORECTARE: QHeaderView.ResizeMode.Stretch
+        self.table.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        ly_matrix.addWidget(self.table)
+        layout.addWidget(self.gb_matrix)
+        
+        ly_actions = QHBoxLayout()
+        btn_back = QPushButton("Înapoi")
+        btn_back.clicked.connect(self.go_back)
+        ly_actions.addWidget(btn_back)
+        ly_actions.addStretch()
+        self.btn_run = QPushButton("Rulează Algoritmul")
+        self.btn_run.setHidden(True)
+        self.btn_run.clicked.connect(self.run_algorithm)
+        ly_actions.addWidget(self.btn_run)
+        layout.addLayout(ly_actions)
+
+    def generate_matrix(self) -> None:
+        n = self.spin_n.value()
+        self.table.setRowCount(n)
+        self.table.setColumnCount(n)
+        
+        labels = [f"Sarcina {i+1}" for i in range(n)]
+        self.table.setHorizontalHeaderLabels(labels)
+        self.table.setVerticalHeaderLabels([f"Muncitor {i+1}" for i in range(n)])
+        
+        for i in range(n):
+            for j in range(n):
+                item = QTableWidgetItem("10")
+                # CORECTARE: Qt.AlignmentFlag.AlignCenter
+                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                self.table.setItem(i, j, item)
+                
+        self.gb_matrix.setHidden(False)
+        self.btn_run.setHidden(False)
+
+    def run_algorithm(self) -> None:
+        try:
+            n = self.table.rowCount()
+            matrice = []
+            for i in range(n):
+                rand = []
+                for j in range(n):
+                    cell_item = self.table.item(i, j)
+                    # CORECTARE: Verificare prezență celulă pentru Pylance optional check
+                    if not cell_item:
+                        raise ValueError("Toate celulele matricei trebuie completate!")
+                    val_text = cell_item.text().strip()
+                    if not val_text:
+                        raise ValueError("Toate celulele matricei trebuie completate!")
+                    rand.append(int(val_text))
+                matrice.append(rand)
+                
+            self.output_win = HungarianView(matrice)
+            self.output_win.show()
+            self.close()
+        except ValueError as e:
+            QMessageBox.warning(self, "Eroare Validare", str(e))
+
+    def go_back(self) -> None:
+        self.launcher.show()
+        self.close()
+
+
+# ==============================================================================
+# CONFIGURARE BELLMAN-KALABA
+# ==============================================================================
+class BKConfigWindow(QWidget):
+    def __init__(self, launcher: MainLauncher) -> None:
+        super().__init__()
+        self.launcher = launcher
+        self.setWindowTitle("Configurare Bellman-Kalaba")
+        self.resize(650, 500)
+        self.setStyleSheet(STYLESHEET)
+        
+        layout = QVBoxLayout(self)
+        
+        gb_dim = QGroupBox("1. Definire Dimensiune Rețea (Număr Noduri)")
+        ly_dim = QHBoxLayout(gb_dim)
+        ly_dim.addWidget(QLabel("Număr de noduri N:"))
+        self.spin_n = QSpinBox()
+        self.spin_n.setRange(2, 50)
+        self.spin_n.setValue(4)
+        ly_dim.addWidget(self.spin_n)
+        
+        btn_gen = QPushButton("Generează Matrice de Costuri")
+        btn_gen.clicked.connect(self.generate_matrix_table)
+        ly_dim.addWidget(btn_gen)
+        layout.addWidget(gb_dim)
+        
+        self.gb_matrix = QGroupBox("2. Completare Matrice de Costuri C (introduceți numere sau 'inf')")
+        self.gb_matrix.setHidden(True)
+        ly_matrix = QVBoxLayout(self.gb_matrix)
+        
+        self.table_c = QTableWidget()
+        # CORECTARE: QHeaderView.ResizeMode.Stretch
+        self.table_c.horizontalHeader().setSectionResizeMode(QHeaderView.ResizeMode.Stretch)
+        
+        scroll = QScrollArea()
+        scroll.setWidgetResizable(True)
+        scroll.setWidget(self.table_c)
+        ly_matrix.addWidget(scroll)
+        
+        ly_sd = QHBoxLayout()
+        self.txt_sursa = QLineEdit("x1")
+        self.txt_dest = QLineEdit("x4")
+        ly_sd.addWidget(QLabel("Nod de Start (xs):"))
+        ly_sd.addWidget(self.txt_sursa)
+        ly_sd.addWidget(QLabel("Nod Destinație (xN):"))
+        ly_sd.addWidget(self.txt_dest)
+        ly_matrix.addLayout(ly_sd)
+        layout.addWidget(self.gb_matrix)
+        
+        ly_actions = QHBoxLayout()
+        btn_back = QPushButton("Înapoi")
+        btn_back.clicked.connect(self.go_back)
+        ly_actions.addWidget(btn_back)
+        ly_actions.addStretch()
+        self.btn_run = QPushButton("Rulează Algoritmul")
+        self.btn_run.setHidden(True)
+        self.btn_run.clicked.connect(self.run_algorithm)
+        ly_actions.addWidget(self.btn_run)
+        layout.addLayout(ly_actions)
+
+    def generate_matrix_table(self) -> None:
+        n = self.spin_n.value()
+        self.table_c.setRowCount(n)
+        self.table_c.setColumnCount(n)
+        
+        etichete = [f"x{i+1}" for i in range(n)]
+        self.table_c.setVerticalHeaderLabels(etichete)
+        self.table_c.setHorizontalHeaderLabels(etichete)
+        
+        for i in range(n):
+            for j in range(n):
+                val_implicita = "0" if i == j else "inf"
+                item = QTableWidgetItem(val_implicita)
+                # CORECTARE: Qt.AlignmentFlag.AlignCenter
+                item.setTextAlignment(Qt.AlignmentFlag.AlignCenter)
+                if i == j:
+                    # CORECTARE: În PySide6 se folosește direct structura internă fără operatorul ~ pe tip incert
+                    item.setFlags(item.flags() & ~Qt.ItemFlag.ItemIsEditable)
+                    item.setBackground(QColor(240, 240, 240))
+                self.table_c.setItem(i, j, item)
+                
+        self.txt_sursa.setText("x1")
+        self.txt_dest.setText(f"x{n}")
+        self.gb_matrix.setHidden(False)
+        self.btn_run.setHidden(False)
+
+    def run_algorithm(self) -> None:
+        try:
+            n = self.table_c.rowCount()
+            etichete_noduri = [f"x{i+1}" for i in range(n)]
+            sursa = self.txt_sursa.text().strip()
+            destinatie = self.txt_dest.text().strip()
+            
+            if sursa not in etichete_noduri: raise ValueError(f"Nodul de start '{sursa}' nu există.")
+            if destinatie not in etichete_noduri: raise ValueError(f"Nodul destinație '{destinatie}' nu există.")
+            if sursa == destinatie: raise ValueError("Nodul de start și destinația nu pot fi identice.")
+
+            date_intrare = {}
+            id_arc = 1
+            for i in range(n):
+                for j in range(n):
+                    if i == j: continue
+                    item = self.table_c.item(i, j)
+                    # CORECTARE: Verificare de tip explicit pentru a asigura eliminarea erorii de Optional
+                    if not item: continue
+                    text_val = item.text().strip().lower()
+                    if text_val in ["inf", "∞", ""]: continue
+                    if not text_val.isdigit(): raise ValueError(f"Valoare nepermisă la celula ({i+1},{j+1}).")
+                    
+                    date_intrare[f"a{id_arc}"] = {"node": (f"x{i+1}", f"x{j+1}"), "value": int(text_val)}
+                    id_arc += 1
+
+            self.output_win = BellmanKalabaView(date_intrare, sursa, destinatie)
+            self.output_win.show()
+            self.close()
+        except ValueError as e:
+            QMessageBox.warning(self, "Eroare Validare", str(e))
+
+    def go_back(self) -> None:
+        self.launcher.show()
+        self.close()
+
+
+# ==============================================================================
+# LANSATOR
+# ==============================================================================
 if __name__ == "__main__":
     app = QApplication(sys.argv)
-    app.setStyle("Fusion") # Stil curat, compatibil cross-platform
+    app.setStyle("Fusion")
     launcher = MainLauncher()
     launcher.show()
     sys.exit(app.exec())
