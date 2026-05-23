@@ -13,7 +13,7 @@ class BellmanKalaba:
         Rezolvă problema drumului minim folosind algoritmul Bellman-Kalaba.
         
         :param date_intrare: dict în formatul standard cu arce și valori
-        :param sursa: nodul de start (ex: 'x1')
+        :param sursa: nodul de start (ex: 'x8')
         :param destinatie: nodul terminal (ex: 'x3')
         """
         # 1. Identificăm toate nodurile unice și le sortăm numeric după indici
@@ -48,20 +48,21 @@ class BellmanKalaba:
         tabel_iteratii = []
         
         # --- ITERAȚIA 0 (Pasul 2) ---
+        # m^(0) coincide exact cu coloana nodului terminal din matricea C
         m_curent = [self.matrice_c[i][idx_dest] for i in range(n)]
         m_curent[idx_dest] = 0 # Distanța de la destinație la destinație este 0
         
         tabel_iteratii.append({
             "k": 0,
-            "m": copy.deepcopy(m_curent),
-            "succ": None # Iterația 0 nu are linie de succesori
+            "m": list(m_curent), # Clonare simplă de listă prin constructor
+            "succ": None
         })
 
         # --- ITERAȚIILE URMATOARE k >= 1 (Pasul 3) ---
         k = 1
         while True:
-            # Preluăm starea vectorului m determinat strict la pasul anterior
-            m_precedent = tabel_iteratii[-1]["m"]
+            # CRUCIAL: Creăm o copie independentă a listei de la pasul anterior!
+            m_precedent = list(tabel_iteratii[-1]["m"])
             
             m_nou = [self.inf for _ in range(n)]
             succ_nou = ["-" for _ in range(n)]
@@ -69,7 +70,7 @@ class BellmanKalaba:
             # Destinația rămâne permanent pe 0
             m_nou[idx_dest] = 0
 
-            # Calculăm valorile m^(k) și succ^(k) pentru restul nodurilor
+            # Calculăm valorile m^(k) și succ^(k) pentru restul nodurilor i
             for i in range(n):
                 if i == idx_dest:
                     continue
@@ -84,7 +85,7 @@ class BellmanKalaba:
                         
                     cost_arc = self.matrice_c[i][j]
                     
-                    # CRUCIAL: Evaluăm adunarea folosind STRICT valoarea din m_precedent[j]
+                    # Evaluăm adunarea folosind o valoare neatinsă din iterația trecută
                     if cost_arc != self.inf and m_precedent[j] != self.inf:
                         valoare_posibila = cost_arc + m_precedent[j]
                         if valoare_posibila < minim_nod:
@@ -98,8 +99,8 @@ class BellmanKalaba:
             # Salvează rezultatul acestui pas în istoric
             tabel_iteratii.append({
                 "k": k,
-                "m": copy.deepcopy(m_nou),
-                "succ": copy.deepcopy(succ_nou)
+                "m": list(m_nou),
+                "succ": list(succ_nou)
             })
 
             # TEST DE OPRIRE (Stabilizarea): m^(k) == m^(k-1)
@@ -107,7 +108,6 @@ class BellmanKalaba:
                 break
                 
             k += 1
-            # Permitem algoritmului să ruleze suficienți pași pentru a propaga prin toate circuitele
             if k > 2 * n:
                 break
 
@@ -145,17 +145,14 @@ class BellmanKalaba:
                 drum_optim.append(nod_curent)
 
             # 6. VALIDAREA MATEMATICĂ (Pasul 5)
-            # Numărul de arce active pe drum trebuie să coincidă cu numărul de iterații de schimbare
-            nr_iteratii_active = tabel_iteratii[-1]["k"]
+            # Calculăm câte iterații au produs efectiv schimbări (fără pasul de control)
+            nr_iteratii_active = len(tabel_iteratii) - 2
             
             conditie_cost = (cost_grafic_suma == d_it[idx_sursa])
+            conditie_arce = (nr_arce_drum == nr_iteratii_active)
             
-            # Notă: Într-un tabel stabilizat cu circuite, numărul de arce din drumul optim 
-            # trebuie să se valideze cu costul total final obținut.
-            if conditie_cost:
+            if conditie_cost and conditie_arce:
                 validare_succes = True
-        else:
-            raise ValueError(f"Nu există drum de la sursa '{sursa}' la destinația '{destinatie}'.")
 
         return {
             "noduri": self.noduri,
@@ -180,7 +177,7 @@ if __name__ == "__main__":
         'a4': {'node': ('x4', 'x1'), 'value': 7},
         'a5': {'node': ('x4', 'x9'), 'value': 9},
         'a6': {'node': ('x4', 'x6'), 'value': 8},
-        'a7': {'node': ('x5', 'x1'), 'value': 26},
+        'a7': {'node': ('x5', 'x1'), 'value': 6},
         'a8': {'node': ('x5', 'x6'), 'value': 20},
         'a9': {'node': ('x6', 'x7'), 'value': 17},
         'a10': {'node': ('x6', 'x8'), 'value': 13},
@@ -194,10 +191,21 @@ if __name__ == "__main__":
     bk = BellmanKalaba()
     rez = bk.solve(date_test, sursa='x1', destinatie='x3')
     
-    print("=== TABEL ITERATII CORRETE ===")
-    print("Noduri ordonate:", rez["noduri"])
+    print("=== MATRICEA DE COSTURI INITIALA C ===")
+    print(f"{'':<4}", " ".join([f"{nod:<4}" for nod in rez["noduri"]]))
+    for i, rand in enumerate(rez["matrice_initiala"]):
+        rand_formatat = [str(x) if x != float('inf') else '∞' for x in rand]
+        print(f"{rez['noduri'][i]:<4}", " ".join([f"{x:<4}" for x in rand_formatat]))
+        
+    print("\n=== TABEL ITERATII CORECTAT ===")
+    print("Noduri: ", rez["noduri"])
     for it in rez["tabel_iteratii"]:
         print(f"k = {it['k']}:")
         print(f"  m   : {[x if x != float('inf') else 'inf' for x in it['m']]}")
-        if it['succ']:
+        if it['succ'] is not None:
             print(f"  succ: {it['succ']}")
+            
+    print("\n=== REZULTAT RECONSTRUCȚIE DRUM ===")
+    print("Drum minim gasit:", " -> ".join(rez["drum_optim"]))
+    print("Cost cumulat:    ", rez["cost_total"])
+    print("Validare:        ", "SUCCES" if rez["validare_succes"] else "EȘUATĂ")
