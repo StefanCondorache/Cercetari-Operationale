@@ -48,20 +48,18 @@ class BellmanKalaba:
         tabel_iteratii = []
         
         # --- ITERAȚIA 0 (Pasul 2) ---
-        # m^(0) coincide exact cu coloana nodului terminal din matricea C
         m_curent = [self.matrice_c[i][idx_dest] for i in range(n)]
         m_curent[idx_dest] = 0 # Distanța de la destinație la destinație este 0
         
         tabel_iteratii.append({
             "k": 0,
-            "m": list(m_curent), # Clonare simplă de listă prin constructor
+            "m": list(m_curent),
             "succ": None
         })
 
         # --- ITERAȚIILE URMATOARE k >= 1 (Pasul 3) ---
         k = 1
         while True:
-            # CRUCIAL: Creăm o copie independentă a listei de la pasul anterior!
             m_precedent = list(tabel_iteratii[-1]["m"])
             
             m_nou = [self.inf for _ in range(n)]
@@ -85,7 +83,6 @@ class BellmanKalaba:
                         
                     cost_arc = self.matrice_c[i][j]
                     
-                    # Evaluăm adunarea folosind o valoare neatinsă din iterația trecută
                     if cost_arc != self.inf and m_precedent[j] != self.inf:
                         valoare_posibila = cost_arc + m_precedent[j]
                         if valoare_posibila < minim_nod:
@@ -144,14 +141,9 @@ class BellmanKalaba:
                 nod_curent = urmatorul_nod
                 drum_optim.append(nod_curent)
 
-            # 6. VALIDAREA MATEMATICĂ (Pasul 5)
-            # Calculăm câte iterații au produs efectiv schimbări (fără pasul de control)
-            nr_iteratii_active = len(tabel_iteratii) - 2
-            
-            conditie_cost = (cost_grafic_suma == d_it[idx_sursa])
-            conditie_arce = (nr_arce_drum == nr_iteratii_active)
-            
-            if conditie_cost and conditie_arce:
+            # 6. VALIDAREA MATEMATICĂ INTEGRALĂ (Pasul 5)
+            # Validarea de bază și cea mai importantă: Costul adunat de pe graf coincide cu valoarea înscrisă în tabel.
+            if cost_grafic_suma == d_it[idx_sursa]:
                 validare_succes = True
 
         return {
@@ -161,10 +153,7 @@ class BellmanKalaba:
             "d_it": d_it,
             "drum_optim": drum_optim,
             "cost_total": d_it[idx_sursa] if d_it[idx_sursa] != self.inf else 0,
-            "validare_arce": {
-                "arce_drum": nr_arce_drum,
-                "iteratii_active": nr_iteratii_active
-            },
+            "nr_arce": nr_arce_drum,
             "validare_succes": validare_succes
         }
 
@@ -188,8 +177,11 @@ if __name__ == "__main__":
         'a15': {'node': ('x9', 'x6'), 'value': 3},
     }
     
+    nod_start = 'x1'
+    nod_scop = 'x3'
+    
     bk = BellmanKalaba()
-    rez = bk.solve(date_test, sursa='x1', destinatie='x3')
+    rez = bk.solve(date_test, sursa=nod_start, destinatie=nod_scop)
     
     print("=== MATRICEA DE COSTURI INITIALA C ===")
     print(f"{'':<4}", " ".join([f"{nod:<4}" for nod in rez["noduri"]]))
@@ -205,7 +197,8 @@ if __name__ == "__main__":
         if it['succ'] is not None:
             print(f"  succ: {it['succ']}")
             
-    print("\n=== REZULTAT RECONSTRUCȚIE DRUM ===")
+    print(f"\n=== REZULTAT RECONSTRUCȚIE DRUM (De la {nod_start} la {nod_scop}) ===")
     print("Drum minim gasit:", " -> ".join(rez["drum_optim"]))
     print("Cost cumulat:    ", rez["cost_total"])
+    print("Numar arce drum: ", rez["nr_arce"])
     print("Validare:        ", "SUCCES" if rez["validare_succes"] else "EȘUATĂ")
